@@ -1,0 +1,8 @@
+/build/
+*.user
+*.userprefs
+*.suo
+*.vcxproj
+*.vcxproj.filters
+*.pdb
+/.vs/

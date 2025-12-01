@@ -39,35 +39,49 @@ void ApiClient::run()
 
 void ApiClient::performRequest(const PendingRequest& req)
 {
-    // Construct JSON body
+    // Construct JSON object
     juce::DynamicObject* jsonBody = new juce::DynamicObject();
-    jsonBody->setProperty("type", "AddMelody"); // Simplified
-    jsonBody->setProperty("track", req.cmd.track);
+    
+    // Map Role to String
+    juce::String roleStr = "melody";
+    switch (req.cmd.role) {
+        case MusicalRole::Drums: roleStr = "drums"; break;
+        case MusicalRole::Bass: roleStr = "bass"; break;
+        case MusicalRole::Chords: roleStr = "chords"; break;
+        case MusicalRole::Pad: roleStr = "pad"; break;
+        case MusicalRole::FX: roleStr = "fx"; break;
+        default: break;
+    }
+    jsonBody->setProperty("role", roleStr);
+
+    // Map Action to String
+    juce::String actionStr = "generate";
+    switch (req.cmd.action) {
+        case AgentAction::Replace: actionStr = "replace"; break;
+        case AgentAction::Extend: actionStr = "extend"; break;
+        case AgentAction::ClearRegion: actionStr = "clear"; break;
+        case AgentAction::Humanize: actionStr = "humanize"; break;
+        default: break;
+    }
+    jsonBody->setProperty("action", actionStr);
+
     jsonBody->setProperty("barsStart", req.cmd.barsStart);
     jsonBody->setProperty("barsEnd", req.cmd.barsEnd);
-    jsonBody->setProperty("mood", req.cmd.mood);
-    jsonBody->setProperty("intensity", req.cmd.intensity);
-    if (req.cmd.extra.isNotEmpty())
-        jsonBody->setProperty("extra", req.cmd.extra);
+    jsonBody->setProperty("style", req.cmd.style);
+    jsonBody->setProperty("density", req.cmd.density);
+    jsonBody->setProperty("tempo", 120); // Should get from AppState if possible
 
     juce::var jsonVar(jsonBody);
     juce::String jsonString = juce::JSON::toString(jsonVar);
 
     // Setup URL
-    juce::URL url("http://127.0.0.1:8000/generate_melody");
+    juce::URL url("http://127.0.0.1:8000/generate"); // Updated endpoint
     
     // Perform POST
     juce::StringPairArray responseHeaders;
     int statusCode = 0;
     
-    // Note: withPOSTData is deprecated in newer JUCE versions in favor of other methods, 
-    // but let's stick to standard ways. 
-    // actually `withPOSTData` returns a new URL.
-    
     auto postUrl = url.withPOSTData(jsonString);
-    
-    // We need to set Content-Type header manually if we use withPOSTData with string?
-    // Actually `readEntireTextStream` allows extra headers.
     
     std::unique_ptr<juce::InputStream> stream = postUrl.createInputStream(
         juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
@@ -110,8 +124,6 @@ void ApiClient::performRequest(const PendingRequest& req)
     else
     {
         // Error handling
-        juce::String errorMsg = "Request failed. Status: " + juce::String(statusCode);
-        // We might want to log this or callback with empty sequence
         juce::MessageManager::callAsync([cb = req.callback]() {
             if (cb) cb(Sequence()); // Empty sequence indicates failure
         });

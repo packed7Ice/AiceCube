@@ -1,35 +1,43 @@
 #pragma once
 #include <juce_core/juce_core.h>
 
-struct AgentCommand
-{
-    enum class Type { AddMelody, AddDrums, ModifyMix, Unknown };
+enum class AgentAction {
+    Generate,
+    Replace,
+    Extend,
+    ClearRegion,
+    Humanize
+};
 
-    Type type = Type::Unknown;
-    int track = 0;
-    int barsStart = 0;
-    int barsEnd = 0;
+enum class MusicalRole {
+    Melody,
+    Bass,
+    Drums,
+    Chords,
+    Pad,
+    FX
+};
 
-    juce::String mood;      // "dark", "bright", "tense" etc.
-    float intensity = 0.0f; // 0.0 to 1.0
-    juce::String extra;     // Style or extra parameters
-    juce::String targetTrackName; // Optional: inferred from command
+struct AgentCommand {
+    AgentAction action = AgentAction::Generate;
+    MusicalRole role   = MusicalRole::Melody;
+
+    int track      = 0; // 0-based index, or -1 if new/auto
+    int barsStart  = 1;
+    int barsEnd    = 4;
+
+    juce::String style;   // "dark", "ambient", "lofi" etc.
+    int density   = 3;    // 1-5
+    float swing   = 0.0f; // 0.0-1.0
     
+    juce::String targetTrackName; // Helper for track finding
+
     juce::String toString() const
     {
-        juce::String typeStr;
-        switch (type)
-        {
-            case Type::AddMelody: typeStr = "AddMelody"; break;
-            case Type::AddDrums:  typeStr = "AddDrums"; break;
-            case Type::ModifyMix: typeStr = "ModifyMix"; break;
-            default:              typeStr = "Unknown"; break;
-        }
-
-        return "Type: " + typeStr + 
-               ", Track: " + juce::String(track) +
-               ", Bars: " + juce::String(barsStart) + "-" + juce::String(barsEnd) +
-               ", Mood: " + mood +
-               ", Intensity: " + juce::String(intensity, 2);
+        juce::String str;
+        str << "Action: " << (int)action << ", Role: " << (int)role 
+            << ", Bars: " << barsStart << "-" << barsEnd
+            << ", Style: " << style;
+        return str;
     }
 };

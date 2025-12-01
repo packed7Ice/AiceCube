@@ -5,14 +5,14 @@ CommandExecutor::CommandExecutor(AppState& state, ApiClient& client)
 {
 }
 
-void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const juce::String&)> onLog, std::function<void()> onComplete)
+void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const juce::String&)> logCallback, std::function<void()> completeCallback)
 {
-    if (cmd.type == AgentCommand::Type::AddMelody || cmd.type == AgentCommand::Type::AddDrums)
+    if (cmd.action == AgentAction::Generate || cmd.action == AgentAction::Replace || cmd.action == AgentAction::Extend)
     {
-        onLog("Sending request to server for " + cmd.targetTrackName + "...");
+        // logCallback("Sending request to server for " + cmd.targetTrackName + " (" + cmd.style + ")...");
         
-        apiClient.generateMelody(cmd, [this, cmd, onLog, onComplete](const Sequence& seq) {
-            onLog("Received " + juce::String(seq.notes.size()) + " notes from server.");
+        apiClient.generateMelody(cmd, [=](const Sequence& seq) {
+            // logCallback("Received " + juce::String(seq.notes.size()) + " notes from server.");
             
             // Convert Sequence to Clip
             Clip newClip;
@@ -37,17 +37,28 @@ void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const 
             {
                 appState.addTrack(targetName);
                 trackIndex = appState.tracks.size() - 1;
-                onLog("Created new track: " + targetName);
+                // logCallback("Created new track: " + targetName);
             }
             
+            // If Replace, clear existing clips in range (simplified: clear all for now or just add)
+            if (cmd.action == AgentAction::Replace)
+            {
+                appState.tracks.getReference(trackIndex).clips.clear(); // Simple clear
+            }
+
             appState.addClip(trackIndex, newClip);
-            onLog("Added clip to track " + targetName);
+            // logCallback("Added clip to track " + targetName);
             
-            if (onComplete) onComplete();
+            if (completeCallback) completeCallback();
         });
+    }
+    else if (cmd.action == AgentAction::ClearRegion)
+    {
+        // Implement Clear
+        // logCallback("Clear command not fully implemented yet.");
     }
     else
     {
-        onLog("Command type not yet implemented.");
+        // logCallback("Command action not yet implemented.");
     }
 }

@@ -32,6 +32,18 @@ target_sources(AiceCube PRIVATE
     src/PianoRollComponent.cpp
     src/PianoRollComponent.h
     src/SimpleSynth.h
+    src/AppState.cpp
+    src/AppState.h
+    src/TransportBarComponent.cpp
+    src/TransportBarComponent.h
+    src/LeftPaneComponent.cpp
+    src/LeftPaneComponent.h
+    src/TimelineComponent.cpp
+    src/TimelineComponent.h
+    src/BottomPaneComponent.cpp
+    src/BottomPaneComponent.h
+    src/CommandExecutor.cpp
+    src/CommandExecutor.h
 )
 
 # 使用する JUCE モジュール

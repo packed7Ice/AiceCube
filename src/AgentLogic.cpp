@@ -11,10 +11,17 @@ juce::Array<AgentCommand> AgentLogic::interpretInstruction(const juce::String& i
     if (lowerInput.contains("melody") || lowerInput.contains("メロディ"))
     {
         cmd.type = AgentCommand::Type::AddMelody;
+        cmd.targetTrackName = "Melody";
     }
     else if (lowerInput.contains("drum") || lowerInput.contains("beat") || lowerInput.contains("ドラム"))
     {
         cmd.type = AgentCommand::Type::AddDrums;
+        cmd.targetTrackName = "Drums";
+    }
+    else if (lowerInput.contains("bass") || lowerInput.contains("ベース"))
+    {
+        cmd.type = AgentCommand::Type::AddMelody; // Treat bass as melody for now (or add dedicated type)
+        cmd.targetTrackName = "Bass";
     }
     else if (lowerInput.contains("mix") || lowerInput.contains("volume") || lowerInput.contains("ミックス"))
     {

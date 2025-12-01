@@ -3,37 +3,43 @@
 #include "AgentLogic.h"
 
 MainComponent::MainComponent() {
-  setSize(800, 600);
+  setSize(1024, 768);
   
-  addAndMakeVisible(pianoRoll);
-  addAndMakeVisible(agentPanel);
+  addAndMakeVisible(transportBar);
+  addAndMakeVisible(leftPane);
+  addAndMakeVisible(timeline);
+  addAndMakeVisible(bottomPane);
 
-  // Setup Piano Roll Play Button
-  pianoRoll.onPlayButtonClicked = [this] {
-      if (isPlaying) stopSequence();
-      else playSequence();
+  // Transport Logic
+  transportBar.onPlayClicked = [this] {
+      appState.isPlaying = true;
+  };
+  transportBar.onStopClicked = [this] {
+      appState.isPlaying = false;
+      appState.playheadBeat = 0.0;
+      synth.allNotesOff();
+      timeline.repaint();
   };
 
-  agentPanel.onCommandEntered = [this](const juce::String& command) {
+  // Agent Logic (Connect BottomPane's AgentPanel)
+  bottomPane.getAgentPanel().onCommandEntered = [this](const juce::String& command) {
       auto results = AgentLogic::interpretInstruction(command);
       if (results.isEmpty())
       {
-          agentPanel.logMessage("No command recognized.");
+          bottomPane.getAgentPanel().logMessage("No command recognized.");
       }
       else
       {
           for (const auto& cmd : results)
           {
-              agentPanel.logMessage("Parsed: " + cmd.toString());
+              bottomPane.getAgentPanel().logMessage("Parsed: " + cmd.toString());
               
-              if (cmd.type == AgentCommand::Type::AddMelody)
-              {
-                  agentPanel.logMessage("Sending request to server...");
-                  apiClient.generateMelody(cmd, [this](const Sequence& seq) {
-                      agentPanel.logMessage("Received " + juce::String(seq.notes.size()) + " notes from server.");
-                      pianoRoll.setSequence(seq);
-                  });
-              }
+              commandExecutor.execute(cmd, 
+                [this](const juce::String& msg) { bottomPane.getAgentPanel().logMessage(msg); },
+                [this]() { 
+                    juce::MessageManager::callAsync([this] { timeline.repaint(); });
+                }
+              );
           }
       }
   };
@@ -57,35 +63,62 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 {
     bufferToFill.clearActiveBufferRegion();
 
-    if (isPlaying)
+    if (appState.isPlaying)
     {
-        // Very basic sequencer logic in audio thread (not ideal but works for simple demo)
-        // Check for notes to trigger
-        const auto& seq = pianoRoll.getSequence();
-        double samplesPerBeat = (60.0 / 120.0) * sampleRate; // Assume 120 BPM
-        
+        double samplesPerBeat = (60.0 / appState.tempoBpm) * sampleRate;
         int numSamples = bufferToFill.numSamples;
         
         for (int i = 0; i < numSamples; ++i)
         {
-            double timeInBeats = currentPlayTime / samplesPerBeat;
-            double nextTimeInBeats = (currentPlayTime + 1.0) / samplesPerBeat;
+            double currentBeat = appState.playheadBeat;
+            double nextBeat = currentBeat + (1.0 / samplesPerBeat);
 
-            // Check note starts
-            for (const auto& note : seq.notes)
+            // Check for solo state
+            bool anySolo = false;
+            for (const auto& track : appState.tracks)
             {
-                if (note.start >= timeInBeats && note.start < nextTimeInBeats)
+                if (track.isSoloed)
                 {
-                    synth.noteOn(note.pitch, note.velocity / 127.0f);
+                    anySolo = true;
+                    break;
                 }
-                // Check note ends (simple duration check)
-                if ((note.start + note.duration) >= timeInBeats && (note.start + note.duration) < nextTimeInBeats)
+            }
+
+            // Check note starts/ends across all tracks/clips
+            for (const auto& track : appState.tracks)
+            {
+                // Skip if muted or (solo exists and this track is not soloed)
+                if (track.isMuted || (anySolo && !track.isSoloed))
                 {
-                    synth.noteOff(note.pitch);
+                    continue;
+                }
+
+                for (const auto& clip : track.clips)
+                {
+                    // Relative beat within clip
+                    double clipRelBeat = currentBeat - clip.startBeat;
+                    double clipRelNextBeat = nextBeat - clip.startBeat;
+
+                    if (clipRelBeat >= 0 && clipRelBeat < clip.lengthBeats)
+                    {
+                        for (const auto& note : clip.notes)
+                        {
+                            // Note start
+                            if (note.start >= clipRelBeat && note.start < clipRelNextBeat)
+                            {
+                                synth.noteOn(note.pitch, note.velocity / 127.0f * track.volume);
+                            }
+                            // Note end
+                            if ((note.start + note.duration) >= clipRelBeat && (note.start + note.duration) < clipRelNextBeat)
+                            {
+                                synth.noteOff(note.pitch);
+                            }
+                        }
+                    }
                 }
             }
             
-            currentPlayTime += 1.0;
+            appState.playheadBeat = nextBeat;
         }
         
         // Render Synth
@@ -94,6 +127,9 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
                                              bufferToFill.startSample, 
                                              bufferToFill.numSamples);
         synth.renderNextBlock(synthBuffer, 0, numSamples);
+        
+        // Update UI (throttled in real app, but ok here)
+        juce::MessageManager::callAsync([this] { timeline.repaint(); });
     }
 }
 
@@ -102,37 +138,22 @@ void MainComponent::releaseResources()
     synth.allNotesOff();
 }
 
-void MainComponent::playSequence()
-{
-    currentPlayTime = 0.0;
-    isPlaying = true;
-}
-
-void MainComponent::stopSequence()
-{
-    isPlaying = false;
-    synth.allNotesOff();
-}
-
 void MainComponent::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colours::darkgrey);
-  
-  // Header
-  g.setColour(juce::Colours::white);
-  g.setFont(20.0f);
-  g.drawText("AiceCube", getLocalBounds().removeFromTop(20), juce::Justification::centred, true);
+  g.fillAll(juce::Colours::black);
 }
 
 void MainComponent::resized() {
   auto bounds = getLocalBounds();
   
-  // Reserve space for Header
-  bounds.removeFromTop(20);
+  // 1. Transport Bar (Top)
+  transportBar.setBounds(bounds.removeFromTop(40));
 
-  // Agent Panel at bottom
-  auto agentPanelBounds = bounds.removeFromBottom(150);
-  agentPanel.setBounds(agentPanelBounds);
+  // 4. Bottom Pane (Bottom)
+  bottomPane.setBounds(bounds.removeFromBottom(200));
 
-  // Piano Roll takes remaining space
-  pianoRoll.setBounds(bounds);
+  // 2. Left Pane (Left)
+  leftPane.setBounds(bounds.removeFromLeft(200));
+
+  // 3. Timeline (Remaining Center)
+  timeline.setBounds(bounds);
 }

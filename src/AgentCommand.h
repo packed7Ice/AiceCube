@@ -13,6 +13,7 @@ struct AgentCommand
     juce::String mood;      // "dark", "bright", "tense" etc.
     float intensity = 0.0f; // 0.0 to 1.0
     juce::String extra;     // Style or extra parameters
+    juce::String targetTrackName; // Optional: inferred from command
     
     juce::String toString() const
     {

@@ -1,10 +1,15 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h> // Component, Graphics など
 
-#include "AgentPanel.h"
+#include "AppState.h"
+#include "TransportBarComponent.h"
+#include "LeftPaneComponent.h"
+#include "TimelineComponent.h"
+#include "BottomPaneComponent.h"
 #include "ApiClient.h"
-#include "PianoRollComponent.h"
 #include "SimpleSynth.h"
+
+#include "CommandExecutor.h"
 
 class MainComponent : public juce::AudioAppComponent {
 public:
@@ -20,18 +25,18 @@ public:
   void releaseResources() override;
 
 private:
-  AgentPanel agentPanel;
-  ApiClient apiClient;
-  PianoRollComponent pianoRoll;
-  SimpleSynth synth;
+  AppState appState;
   
-  // Simple playback state
-  bool isPlaying = false;
-  double currentPlayTime = 0.0;
+  TransportBarComponent transportBar{ appState };
+  LeftPaneComponent leftPane{ appState };
+  TimelineComponent timeline{ appState };
+  BottomPaneComponent bottomPane;
+  
+  ApiClient apiClient;
+  SimpleSynth synth;
+  CommandExecutor commandExecutor{ appState, apiClient };
+  
   double sampleRate = 44100.0;
 
-  void playSequence();
-  void stopSequence();
-  
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

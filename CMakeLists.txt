@@ -19,6 +19,15 @@ target_sources(AiceCube PRIVATE
     src/Main.cpp
     src/MainComponent.cpp
     src/MainComponent.h
+    src/AgentPanel.cpp
+    src/AgentPanel.h
+    src/AgentLogic.cpp
+    src/AgentLogic.h
+    src/ApiClient.cpp
+    src/ApiClient.h
+    src/PianoRollComponent.cpp
+    src/PianoRollComponent.h
+    src/SimpleSynth.h
 )
 
 # 使用する JUCE モジュール

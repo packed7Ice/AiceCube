@@ -31,7 +31,7 @@ public:
     
     void noteOff(int note)
     {
-        synth.noteOff(1, note, 0.0f);
+        synth.noteOff(1, note, 0.0f, true);
     }
     
     void allNotesOff()

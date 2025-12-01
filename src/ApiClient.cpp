@@ -1,4 +1,5 @@
 #include "ApiClient.h"
+#include <juce_events/juce_events.h>
 
 ApiClient::ApiClient() : Thread("ApiClientThread")
 {

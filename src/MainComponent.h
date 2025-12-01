@@ -1,15 +1,14 @@
-#pragma once
-#include <juce_gui_basics/juce_gui_basics.h> // Component, Graphics など
-
 #include "AppState.h"
 #include "TransportBarComponent.h"
 #include "LeftPaneComponent.h"
 #include "TimelineComponent.h"
-#include "BottomPaneComponent.h"
+#include "RightPaneComponent.h"
 #include "ApiClient.h"
 #include "SimpleSynth.h"
 
 #include "CommandExecutor.h"
+
+#include "PianoRollComponent.h"
 
 class MainComponent : public juce::AudioAppComponent {
 public:
@@ -30,13 +29,15 @@ private:
   TransportBarComponent transportBar{ appState };
   LeftPaneComponent leftPane{ appState };
   TimelineComponent timeline{ appState };
-  BottomPaneComponent bottomPane;
+  RightPaneComponent rightPane;
+  PianoRollComponent pianoRoll; // New
   
   ApiClient apiClient;
   SimpleSynth synth;
   CommandExecutor commandExecutor{ appState, apiClient };
   
   double sampleRate = 44100.0;
+  bool showPianoRoll = false; // View state
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

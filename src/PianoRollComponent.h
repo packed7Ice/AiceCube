@@ -1,6 +1,6 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "MusicData.h"
+#include "AppState.h"
 
 class PianoRollComponent : public juce::Component
 {
@@ -8,24 +8,24 @@ public:
     PianoRollComponent();
     ~PianoRollComponent() override = default;
 
+    void setClip(Clip* clip);
+    
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    void mouseDown(const juce::MouseEvent& e) override;
 
-    void setSequence(const Sequence& seq);
-    const Sequence& getSequence() const { return sequence; }
-
-    // Playback control
-    std::function<void()> onPlayButtonClicked;
+    std::function<void()> onBackClicked;
 
 private:
-    Sequence sequence;
-    juce::TextButton playButton{ "Play" };
-
-    // Drawing helpers
-    float noteHeight = 10.0f;
+    Clip* currentClip = nullptr;
+    juce::TextButton backButton{ "Back to Timeline" };
+    
     float pixelsPerBeat = 40.0f;
-    int minNote = 36; // C2
-    int maxNote = 84; // C6
+    float pixelsPerPitch = 15.0f;
+    
+    int getPitchAtY(int y);
+    double getBeatAtX(int x);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PianoRollComponent)
 };

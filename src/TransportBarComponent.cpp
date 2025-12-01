@@ -10,7 +10,16 @@ TransportBarComponent::TransportBarComponent(AppState& state) : appState(state)
     playButton.onClick = [this] { if (onPlayClicked) onPlayClicked(); };
     stopButton.onClick = [this] { if (onStopClicked) onStopClicked(); };
 
-    tempoLabel.setText("BPM: " + juce::String(appState.tempoBpm), juce::dontSendNotification);
+    tempoLabel.setText(juce::String(appState.tempoBpm), juce::dontSendNotification);
+    tempoLabel.setEditable(true);
+    tempoLabel.onTextChange = [this] {
+        double newBpm = tempoLabel.getText().getDoubleValue();
+        if (newBpm > 10.0 && newBpm < 300.0)
+        {
+            appState.tempoBpm = newBpm;
+        }
+    };
+    
     positionLabel.setText("Bar: 1.0", juce::dontSendNotification); // Placeholder
 }
 

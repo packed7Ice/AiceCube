@@ -40,8 +40,8 @@ target_sources(AiceCube PRIVATE
     src/LeftPaneComponent.h
     src/TimelineComponent.cpp
     src/TimelineComponent.h
-    src/BottomPaneComponent.cpp
-    src/BottomPaneComponent.h
+    src/RightPaneComponent.cpp
+    src/RightPaneComponent.h
     src/CommandExecutor.cpp
     src/CommandExecutor.h
 )

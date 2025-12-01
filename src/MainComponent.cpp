@@ -1,14 +1,31 @@
 #include "MainComponent.h"
-
 #include "AgentLogic.h"
 
 MainComponent::MainComponent() {
-  setSize(1024, 768);
+  setSize(1280, 768); // Wider default
   
   addAndMakeVisible(transportBar);
   addAndMakeVisible(leftPane);
   addAndMakeVisible(timeline);
-  addAndMakeVisible(bottomPane);
+  addAndMakeVisible(rightPane);
+  addChildComponent(pianoRoll); // Initially hidden
+
+  // Timeline Logic
+  timeline.onClipDoubleClicked = [this](Clip* clip) {
+      pianoRoll.setClip(clip);
+      showPianoRoll = true;
+      timeline.setVisible(false);
+      pianoRoll.setVisible(true);
+      resized();
+  };
+  
+  // Piano Roll Logic
+  pianoRoll.onBackClicked = [this] {
+      showPianoRoll = false;
+      pianoRoll.setVisible(false);
+      timeline.setVisible(true);
+      resized();
+  };
 
   // Transport Logic
   transportBar.onPlayClicked = [this] {
@@ -21,21 +38,21 @@ MainComponent::MainComponent() {
       timeline.repaint();
   };
 
-  // Agent Logic (Connect BottomPane's AgentPanel)
-  bottomPane.getAgentPanel().onCommandEntered = [this](const juce::String& command) {
+  // Agent Logic (Connect RightPane's AgentPanel)
+  rightPane.getAgentPanel().onCommandEntered = [this](const juce::String& command) {
       auto results = AgentLogic::interpretInstruction(command);
       if (results.isEmpty())
       {
-          bottomPane.getAgentPanel().logMessage("No command recognized.");
+          rightPane.getAgentPanel().logMessage("No command recognized.");
       }
       else
       {
           for (const auto& cmd : results)
           {
-              bottomPane.getAgentPanel().logMessage("Parsed: " + cmd.toString());
+              rightPane.getAgentPanel().logMessage("Parsed: " + cmd.toString());
               
               commandExecutor.execute(cmd, 
-                [this](const juce::String& msg) { bottomPane.getAgentPanel().logMessage(msg); },
+                [this](const juce::String& msg) { rightPane.getAgentPanel().logMessage(msg); },
                 [this]() { 
                     juce::MessageManager::callAsync([this] { timeline.repaint(); });
                 }
@@ -148,12 +165,19 @@ void MainComponent::resized() {
   // 1. Transport Bar (Top)
   transportBar.setBounds(bounds.removeFromTop(40));
 
-  // 4. Bottom Pane (Bottom)
-  bottomPane.setBounds(bounds.removeFromBottom(200));
+  // 2. Right Pane (Agent) - Fixed width for now, say 300px
+  rightPane.setBounds(bounds.removeFromRight(300));
 
-  // 2. Left Pane (Left)
+  // 3. Left Pane (Tracks) - Fixed width for now, say 200px
   leftPane.setBounds(bounds.removeFromLeft(200));
 
-  // 3. Timeline (Remaining Center)
-  timeline.setBounds(bounds);
+  // 4. Timeline or Piano Roll (Remaining Center)
+  if (showPianoRoll)
+  {
+      pianoRoll.setBounds(bounds);
+  }
+  else
+  {
+      timeline.setBounds(bounds);
+  }
 }

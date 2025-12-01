@@ -45,6 +45,67 @@ void TimelineComponent::paint(juce::Graphics& g)
     g.drawVerticalLine((int)playheadX, 0.0f, (float)getHeight());
 }
 
+void TimelineComponent::mouseDown(const juce::MouseEvent& e)
+{
+    // Simple hit test
+    int trackIndex = e.y / trackHeight;
+    if (trackIndex >= 0 && trackIndex < appState.tracks.size())
+    {
+        auto& track = appState.tracks.getReference(trackIndex);
+        double beat = e.x / pixelsPerBeat;
+        
+        // Check clips
+        for (int i = 0; i < track.clips.size(); ++i)
+        {
+            auto& clip = track.clips.getReference(i);
+            if (beat >= clip.startBeat && beat < clip.getEndBeat())
+            {
+                draggingClipTrackIndex = trackIndex;
+                draggingClipIndex = i;
+                lastMouseX = e.x;
+                
+                if (e.mods.isLeftButtonDown() && e.getNumberOfClicks() == 2)
+                {
+                    if (onClipDoubleClicked) onClipDoubleClicked(&clip);
+                }
+                
+                return; // Found clip
+            }
+        }
+    }
+    
+    // Deselect or other actions
+    draggingClipTrackIndex = -1;
+    draggingClipIndex = -1;
+}
+
+void TimelineComponent::mouseDrag(const juce::MouseEvent& e)
+{
+    if (draggingClipTrackIndex != -1 && draggingClipIndex != -1)
+    {
+        auto& track = appState.tracks.getReference(draggingClipTrackIndex);
+        if (draggingClipIndex < track.clips.size())
+        {
+            auto& clip = track.clips.getReference(draggingClipIndex);
+            
+            float deltaPx = (float)(e.x - lastMouseX);
+            double deltaBeats = deltaPx / pixelsPerBeat;
+            
+            clip.startBeat += deltaBeats;
+            if (clip.startBeat < 0) clip.startBeat = 0;
+            
+            lastMouseX = e.x;
+            repaint();
+        }
+    }
+}
+
+void TimelineComponent::mouseUp(const juce::MouseEvent& e)
+{
+    draggingClipTrackIndex = -1;
+    draggingClipIndex = -1;
+}
+
 void TimelineComponent::resized()
 {
 }

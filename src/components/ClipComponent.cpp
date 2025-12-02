@@ -22,6 +22,12 @@ void ClipComponent::mouseDown(const juce::MouseEvent& e)
     originalStartBeat = clip.startBeat;
     originalLength = clip.lengthBeats;
     
+    if (e.getNumberOfClicks() == 2)
+    {
+        if (onClipDoubleClicked) onClipDoubleClicked();
+        return;
+    }
+
     if (e.x > getWidth() - 10)
         isResizing = true;
     else
@@ -32,17 +38,21 @@ void ClipComponent::mouseDrag(const juce::MouseEvent& e)
 {
     if (isResizing)
     {
-        double diffBeats = e.getDistanceFromDragStartX() / pixelsPerBeat;
+        double diffBeats = (e.getPosition().x - e.getMouseDownX()) / pixelsPerBeat;
         double newLength = originalLength + diffBeats;
         if (newLength < 0.25) newLength = 0.25;
         clip.lengthBeats = newLength;
+        
+        setSize((int)(newLength * pixelsPerBeat), getHeight());
     }
     else
     {
-        double diffBeats = e.getDistanceFromDragStartX() / pixelsPerBeat;
+        double diffBeats = (e.getDistanceFromDragStartX()) / pixelsPerBeat;
         double newStart = originalStartBeat + diffBeats;
         if (newStart < 0) newStart = 0;
         clip.startBeat = newStart;
+        
+        setTopLeftPosition((int)(newStart * pixelsPerBeat), getY());
     }
     
     if (onClipModified) onClipModified();

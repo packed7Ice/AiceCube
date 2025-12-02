@@ -60,7 +60,10 @@ void TimelineComponent::updateTimeline()
             int h = trackHeight - 4;
             
             cc->setBounds(x, y, w, h);
-            cc->onClipModified = [this] { updateTimeline(); repaint(); };
+            cc->onClipModified = [this] { repaint(); };
+            cc->onClipDoubleClicked = [this, &clip] { 
+                if (onClipEditRequested) onClipEditRequested(clip); 
+            };
             
             addAndMakeVisible(cc);
             clipComponents.add(cc);

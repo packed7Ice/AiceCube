@@ -13,6 +13,7 @@ public:
     void mouseDown(const juce::MouseEvent& e) override;
 
     std::function<void()> onClipModified;
+    std::function<void()> onClipDoubleClicked;
 
 private:
     Clip& clip;

@@ -44,6 +44,8 @@ target_sources(AiceCube PRIVATE
     src/components/TimelineComponent.h
     src/components/ClipComponent.cpp
     src/components/ClipComponent.h
+    src/components/PianoRollEditorComponent.cpp
+    src/components/PianoRollEditorComponent.h
     src/components/MixerComponent.cpp
     src/components/MixerComponent.h
     src/components/BrowserComponent.cpp

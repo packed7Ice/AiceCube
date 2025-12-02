@@ -10,7 +10,9 @@
 #include "AgentPanel.h"
 #include "ApiClient.h"
 #include "CommandExecutor.h"
+#include "CommandExecutor.h"
 #include "AgentLogic.h"
+#include "components/PianoRollEditorComponent.h"
 
 class MainComponent : public juce::AudioAppComponent
 {

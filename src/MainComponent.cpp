@@ -31,6 +31,20 @@ MainComponent::MainComponent()
         timeline.repaint();
     };
     
+    // Timeline Callbacks
+    timeline.onClipEditRequested = [this](Clip& clip) {
+        if (clip.isMidi)
+        {
+            auto* editor = new PianoRollEditorComponent(clip);
+            juce::DialogWindow::LaunchOptions opt;
+            opt.content.setOwned(editor);
+            opt.dialogTitle = "Piano Roll - " + clip.name;
+            opt.dialogBackgroundColour = juce::Colours::darkgrey;
+            opt.resizable = true;
+            opt.launchAsync();
+        }
+    };
+    
     // Agent Logic
     agentPanel.onCommandEntered = [this](const juce::String& command) {
         auto commands = AgentLogic::interpretInstruction(command);

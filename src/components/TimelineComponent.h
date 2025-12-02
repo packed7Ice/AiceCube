@@ -15,6 +15,8 @@ public:
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
 
     void updateTimeline();
+    
+    std::function<void(Clip&)> onClipEditRequested;
 
 private:
     ProjectState& projectState;

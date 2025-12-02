@@ -21,12 +21,33 @@ public:
     void updateGraph(); // Syncs graph with ProjectState
     
     // File Management
-    juce::AudioFormatManager& getFormatManager() { return formatManager; }
+    // Plugin Management
+    juce::AudioPluginFormatManager& getPluginFormatManager() { return pluginFormatManager; }
+    juce::KnownPluginList& getKnownPluginList() { return knownPluginList; }
+    
+    void scanPlugins();
+    std::shared_ptr<juce::AudioPluginInstance> loadPlugin(const juce::PluginDescription& desc);
+    
+    void addPluginToTrack(Track* track, int slotIndex, const juce::PluginDescription& desc);
+    void setInstrumentPlugin(Track* track, const juce::PluginDescription& desc);
+    void showPluginWindow(juce::AudioPluginInstance* plugin);
+    void closePluginWindow(juce::AudioPluginInstance* plugin);
 
 private:
     ProjectState& projectState;
     std::unique_ptr<juce::AudioProcessorGraph> mainProcessor;
     juce::AudioFormatManager formatManager;
+    
+    // Plugins
+    juce::AudioPluginFormatManager pluginFormatManager;
+    juce::KnownPluginList knownPluginList;
+    std::unique_ptr<juce::PluginDirectoryScanner> pluginScanner;
+    juce::File knownPluginListFile;
+    
+    // Plugin Windows
+    // We use a map to keep track of windows for each plugin instance
+    // Key is the raw pointer to the plugin instance (which is owned by Track/PluginSlot)
+    std::map<juce::AudioPluginInstance*, juce::Component::SafePointer<juce::DocumentWindow>> pluginWindows;
     
     std::map<juce::String, std::unique_ptr<juce::AudioFormatReader>> fileReaders;
     

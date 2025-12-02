@@ -44,7 +44,7 @@ void TrackHeaderListComponent::updateTrackList()
     
     for (int i = 0; i < projectState.tracks.size(); ++i)
     {
-        auto* header = new TrackHeaderComponent(projectState.tracks[i], i);
+        auto* header = new TrackHeaderComponent(projectState.tracks[i]);
         headers.add(header);
         addAndMakeVisible(header);
     }

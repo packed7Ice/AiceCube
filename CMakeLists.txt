@@ -46,6 +46,8 @@ target_sources(AiceCube PRIVATE
     src/components/ClipComponent.h
     src/components/PianoRollEditorComponent.cpp
     src/components/PianoRollEditorComponent.h
+    src/components/ModernLookAndFeel.cpp
+    src/components/ModernLookAndFeel.h
     src/components/MixerComponent.cpp
     src/components/MixerComponent.h
     src/components/BrowserComponent.cpp
@@ -68,4 +70,9 @@ target_link_libraries(AiceCube PRIVATE
     juce::juce_gui_extra
     juce::juce_audio_utils
     juce::juce_audio_processors
+)
+
+target_compile_definitions(AiceCube PRIVATE
+    JUCE_PLUGINHOST_VST3=1
+    JUCE_PLUGINHOST_AU=0
 )

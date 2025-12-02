@@ -6,8 +6,13 @@ MainComponent::MainComponent()
       transportBar(projectState),
       trackHeaders(projectState),
       timeline(projectState),
-      mixer(projectState)
+      mixer(projectState, audioEngine)
 {
+    juce::LookAndFeel::setDefaultLookAndFeel(&modernLookAndFeel);
+    
+    // Initialize Plugins
+    audioEngine.scanPlugins();
+    
     setSize(1200, 800);
 
     // Audio
@@ -66,6 +71,7 @@ MainComponent::MainComponent()
 MainComponent::~MainComponent()
 {
     shutdownAudio();
+    juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
 }
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)

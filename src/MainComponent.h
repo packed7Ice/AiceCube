@@ -7,14 +7,13 @@
 #include "components/TimelineComponent.h"
 #include "components/MixerComponent.h"
 #include "components/BrowserComponent.h"
+#include "components/PianoRollEditorComponent.h"
+#include "components/ModernLookAndFeel.h"
 #include "AgentPanel.h"
-#include "ApiClient.h"
-#include "CommandExecutor.h"
 #include "CommandExecutor.h"
 #include "AgentLogic.h"
-#include "components/PianoRollEditorComponent.h"
 
-class MainComponent : public juce::AudioAppComponent
+class MainComponent : public juce::AudioAppComponent, public juce::DragAndDropContainer
 {
 public:
     MainComponent();
@@ -44,6 +43,8 @@ private:
     BrowserComponent browser;
     
     AgentPanel agentPanel;
+    
+    ModernLookAndFeel modernLookAndFeel;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

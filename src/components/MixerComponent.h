@@ -2,12 +2,12 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../model/ProjectState.h"
 
-class MixerChannelStrip;
+class AudioEngine;
 
 class MixerComponent : public juce::Component
 {
 public:
-    MixerComponent(ProjectState& state);
+    MixerComponent(ProjectState& state, AudioEngine& engine);
     ~MixerComponent() override;
 
     void paint(juce::Graphics& g) override;
@@ -17,7 +17,8 @@ public:
 
 private:
     ProjectState& projectState;
-    juce::OwnedArray<MixerChannelStrip> strips;
+    AudioEngine& audioEngine;
+    std::vector<std::unique_ptr<juce::Component>> strips;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerComponent)
 };

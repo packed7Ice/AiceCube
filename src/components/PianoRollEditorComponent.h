@@ -17,6 +17,7 @@ public:
         g.fillAll(juce::Colours::darkgrey.darker(0.5f));
         
         auto bounds = getLocalBounds();
+        auto velocityArea = bounds.removeFromBottom(velocityHeight);
         auto keyboardArea = bounds.removeFromLeft(keyboardWidth);
         auto contentArea = bounds;
         
@@ -28,7 +29,7 @@ public:
         for (int i = 0; i < numBeats; ++i)
         {
             float x = (float)beatsToX(i);
-            g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
+            g.drawVerticalLine((int)x, 0.0f, (float)contentArea.getBottom());
         }
         
         for (int i = 0; i < 128; ++i)
@@ -67,12 +68,47 @@ public:
                 g.drawRect(x, y, w, (float)noteHeight - 1);
             }
         }
+        
+        // 3. Draw Velocity Lane
+        g.reduceClipRegion(getLocalBounds()); // Reset clip
+        g.setColour(juce::Colours::black);
+        g.fillRect(velocityArea);
+        g.setColour(juce::Colours::white);
+        g.drawHorizontalLine(velocityArea.getY(), 0.0f, (float)getWidth());
+        
+        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        {
+            auto* event = clip.midiSequence.getEventPointer(i);
+            if (event->message.isNoteOn())
+            {
+                double startBeat = event->message.getTimeStamp();
+                float x = (float)beatsToX(startBeat);
+                float vel = event->message.getVelocity() / 127.0f;
+                float h = vel * velocityHeight;
+                float y = (float)velocityArea.getBottom() - h;
+                
+                if (i == selectedNoteIndex)
+                    g.setColour(juce::Colours::orange.brighter());
+                else
+                    g.setColour(juce::Colours::orange);
+                    
+                g.fillRect(x, y, 5.0f, h);
+            }
+        }
     }
     
     void resized() override {}
     
     void mouseDown(const juce::MouseEvent& e) override
     {
+        if (e.y > getHeight() - velocityHeight)
+        {
+            // Velocity Edit
+            isEditingVelocity = true;
+            editVelocity(e);
+            return;
+        }
+
         if (e.x < keyboardWidth) return;
         
         int noteIdx = getNoteAt(e.x, e.y);
@@ -134,6 +170,12 @@ public:
     
     void mouseDrag(const juce::MouseEvent& e) override
     {
+        if (isEditingVelocity)
+        {
+            editVelocity(e);
+            return;
+        }
+
         if (selectedNoteIndex != -1 && isDragging)
         {
             auto* noteOn = clip.midiSequence.getEventPointer(selectedNoteIndex);
@@ -158,7 +200,7 @@ public:
                 int pitchDiff = currentPitch - dragStartPitch;
                 
                 double newStart = originalNoteStart + beatDiff;
-                newStart = std::round(newStart * 4.0) / 4.0;
+                if (snapEnabled) newStart = std::round(newStart / snapResolution) * snapResolution;
                 if (newStart < 0) newStart = 0;
                 
                 int newPitch = originalNotePitch + pitchDiff;
@@ -179,15 +221,62 @@ public:
     
     void mouseUp(const juce::MouseEvent& e) override
     {
-        if (isDragging)
+        if (isDragging || isEditingVelocity)
         {
             clip.midiSequence.sort();
             clip.midiSequence.updateMatchedPairs();
             isDragging = false;
             isResizing = false;
-            selectedNoteIndex = -1;
+            isEditingVelocity = false;
+            // selectedNoteIndex = -1; // Keep selection
             repaint();
         }
+    }
+
+    void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override
+    {
+        if (e.mods.isCommandDown()) // Zoom X
+        {
+            pixelsPerBeat += wheel.deltaY * 10.0;
+            if (pixelsPerBeat < 10.0) pixelsPerBeat = 10.0;
+            if (pixelsPerBeat > 300.0) pixelsPerBeat = 300.0;
+        }
+        else if (e.mods.isShiftDown()) // Zoom Y
+        {
+            noteHeight += (int)(wheel.deltaY * 5.0);
+            if (noteHeight < 5) noteHeight = 5;
+            if (noteHeight > 50) noteHeight = 50;
+        }
+        else // Scroll
+        {
+            scrollX -= wheel.deltaX * 20.0;
+            scrollY -= wheel.deltaY * 20.0;
+            if (scrollX < 0) scrollX = 0;
+            // Limit scrollY?
+        }
+        repaint();
+    }
+    
+    void quantize()
+    {
+        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        {
+            auto* event = clip.midiSequence.getEventPointer(i);
+            if (event->message.isNoteOn())
+            {
+                double start = event->message.getTimeStamp();
+                double quantized = std::round(start / snapResolution) * snapResolution;
+                
+                auto* noteOff = clip.midiSequence.getEventPointer(clip.midiSequence.getIndexOfMatchingKeyUp(i));
+                double duration = noteOff ? (noteOff->message.getTimeStamp() - start) : 1.0;
+                
+                event->message.setTimeStamp(quantized);
+                if (noteOff) noteOff->message.setTimeStamp(quantized + duration);
+            }
+        }
+        clip.midiSequence.sort();
+        clip.midiSequence.updateMatchedPairs();
+        repaint();
     }
 
 private:
@@ -195,17 +284,22 @@ private:
     double pixelsPerBeat = 100.0;
     int noteHeight = 20;
     int keyboardWidth = 60;
+    int velocityHeight = 100;
     int scrollX = 0;
     int scrollY = 0;
     
     int selectedNoteIndex = -1;
     bool isDragging = false;
     bool isResizing = false;
+    bool isEditingVelocity = false;
     double dragStartBeat = 0;
     int dragStartPitch = 0;
     double originalNoteStart = 0;
     int originalNotePitch = 0;
     double originalNoteDuration = 0;
+    
+    bool snapEnabled = true;
+    double snapResolution = 0.25; // 16th note
 
     int getNoteAt(int x, int y)
     {
@@ -232,6 +326,45 @@ private:
             }
         }
         return -1;
+    }
+    
+    void editVelocity(const juce::MouseEvent& e)
+    {
+        // Find note at X
+        double beat = xToBeats(e.x);
+        // Simple: Find closest note start? Or note covering this beat?
+        // For now, let's just find the note that starts closest to this beat within a threshold?
+        // Or better: if we have a selection, edit that. If not, find note under cursor X.
+        
+        // Let's iterate and find note at this X
+        int bestIdx = -1;
+        double minDist = 1000.0;
+        
+        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        {
+            auto* event = clip.midiSequence.getEventPointer(i);
+            if (event->message.isNoteOn())
+            {
+                double start = event->message.getTimeStamp();
+                int x = beatsToX(start);
+                if (std::abs(e.x - x) < 10) // Within 10 pixels
+                {
+                    bestIdx = i;
+                    break;
+                }
+            }
+        }
+        
+        if (bestIdx != -1)
+        {
+            auto* event = clip.midiSequence.getEventPointer(bestIdx);
+            float vel = 1.0f - (float)(e.y - (getHeight() - velocityHeight)) / (float)velocityHeight;
+            if (vel < 0) vel = 0;
+            if (vel > 1) vel = 1;
+            event->message.setVelocity(vel);
+            selectedNoteIndex = bestIdx;
+            repaint();
+        }
     }
     
     double xToBeats(int x) const { return (x - keyboardWidth + scrollX) / pixelsPerBeat; }

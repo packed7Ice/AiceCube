@@ -24,7 +24,7 @@ void ClipComponent::mouseDown(const juce::MouseEvent& e)
     
     if (e.getNumberOfClicks() == 2)
     {
-        if (onClipDoubleClicked) onClipDoubleClicked();
+        if (onClipDoubleClicked) onClipDoubleClicked(clip);
         return;
     }
 

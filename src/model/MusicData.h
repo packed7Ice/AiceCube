@@ -61,6 +61,20 @@ struct Clip
 };
 
 //==============================================================================
+struct AutomationPoint
+{
+    double time; // Beats
+    float value; // 0.0 - 1.0
+};
+
+struct AutomationCurve
+{
+    juce::String parameterID;
+    std::vector<AutomationPoint> points;
+    bool active = false;
+};
+
+//==============================================================================
 struct Track
 {
     TrackType type = TrackType::Midi;
@@ -70,7 +84,11 @@ struct Track
     std::vector<Clip> clips;
     
     // Plugins
+    std::shared_ptr<PluginSlot> instrumentPlugin; // For MIDI tracks
     std::vector<std::shared_ptr<PluginSlot>> insertPlugins;
+    
+    // Automation
+    std::vector<AutomationCurve> automationCurves;
     
     // Mixer
     float volume = 1.0f;

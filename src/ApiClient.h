@@ -1,7 +1,7 @@
 #pragma once
 #include <juce_core/juce_core.h>
 #include "AgentCommand.h"
-#include "MusicData.h"
+#include "model/MusicData.h"
 
 class ApiClient : public juce::Thread
 {

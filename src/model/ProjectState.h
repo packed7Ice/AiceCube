@@ -1,0 +1,38 @@
+#pragma once
+#include <juce_core/juce_core.h>
+#include "MusicData.h"
+
+class ProjectState
+{
+public:
+    ProjectState();
+    ~ProjectState() = default;
+
+    // Transport
+    double tempo = 120.0;
+    int timeSignatureNumerator = 4;
+    int timeSignatureDenominator = 4;
+    
+    double playheadBeat = 0.0;
+    bool isPlaying = false;
+    bool isLooping = false;
+    double loopStart = 0.0;
+    double loopEnd = 4.0;
+
+    // Data
+    // Using shared_ptr for Tracks to allow easy management
+    std::vector<std::shared_ptr<Track>> tracks;
+
+    // Serialization
+    juce::ValueTree serializationRoot { "Project" };
+
+    // Methods
+    void addTrack(TrackType type, const juce::String& name);
+    void addClip(int trackIndex, const Clip& clip);
+    
+    // Helpers
+    Track* getTrack(int index) {
+        if (index >= 0 && index < tracks.size()) return tracks[index].get();
+        return nullptr;
+    }
+};

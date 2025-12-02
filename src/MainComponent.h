@@ -1,50 +1,47 @@
-#include "AppState.h"
-#include "TransportBarComponent.h"
-#include "LeftPaneComponent.h"
-#include "TimelineComponent.h"
-#include "RightPaneComponent.h"
+#pragma once
+#include <juce_gui_basics/juce_gui_basics.h>
+#include "model/ProjectState.h"
+#include "engine/AudioEngine.h"
+#include "components/TransportBarComponent.h"
+#include "components/TrackHeaderListComponent.h"
+#include "components/TimelineComponent.h"
+#include "components/MixerComponent.h"
+#include "components/BrowserComponent.h"
+#include "AgentPanel.h"
 #include "ApiClient.h"
-#include "SimpleSynth.h"
-#include "AudioEngine.h"
-
 #include "CommandExecutor.h"
+#include "AgentLogic.h"
 
-#include "PianoRollComponent.h"
-
-class MainComponent : public juce::AudioAppComponent {
+class MainComponent : public juce::AudioAppComponent
+{
 public:
-  MainComponent();
-  ~MainComponent() override;
+    MainComponent();
+    ~MainComponent() override;
 
-  void paint(juce::Graphics &g) override;
-  void resized() override;
+    void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
+    void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
+    void releaseResources() override;
 
-  // AudioAppComponent overrides
-  void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
-  void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
-  void releaseResources() override;
-  
-  void importAudio();
-  void exportAudio();
+    void paint(juce::Graphics& g) override;
+    void resized() override;
 
 private:
-  AppState appState;
-  
-  TransportBarComponent transportBar{ appState };
-  LeftPaneComponent leftPane{ appState };
-  TimelineComponent timeline{ appState };
-  RightPaneComponent rightPane;
-  PianoRollComponent pianoRoll; // New
-  
-  ApiClient apiClient;
-  SimpleSynth synth;
-  AudioEngine audioEngine{ appState };
-  CommandExecutor commandExecutor{ appState, apiClient };
-  
-  std::unique_ptr<juce::FileChooser> fChooser;
-  
-  double sampleRate = 44100.0;
-  bool showPianoRoll = false; // View state
+    // Model & Engine
+    ProjectState projectState;
+    AudioEngine audioEngine;
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
+    // Agent
+    ApiClient apiClient;
+    CommandExecutor commandExecutor;
+
+    // UI Components
+    TransportBarComponent transportBar;
+    TrackHeaderListComponent trackHeaders;
+    TimelineComponent timeline;
+    MixerComponent mixer;
+    BrowserComponent browser;
+    
+    AgentPanel agentPanel;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

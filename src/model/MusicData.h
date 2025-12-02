@@ -1,0 +1,83 @@
+#pragma once
+#include <juce_core/juce_core.h>
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_processors/juce_audio_processors.h>
+
+//==============================================================================
+enum class TrackType
+{
+    Audio,
+    Midi,
+    Bus,
+    Master
+};
+
+//==============================================================================
+struct Note {
+    int pitch;
+    double startTime;
+    double duration;
+    int velocity;
+};
+
+struct Sequence {
+    std::vector<Note> notes;
+};
+
+//==============================================================================
+struct PluginSlot
+{
+    std::shared_ptr<juce::AudioPluginInstance> instance;
+    bool bypassed = false;
+    juce::String identifier;
+};
+
+//==============================================================================
+struct Clip
+{
+    double startBeat = 0.0;
+    double lengthBeats = 4.0;
+    int trackIndex = 0;
+    bool isMidi = true;
+    
+    juce::String name = "Clip";
+    
+    // MIDI
+    juce::MidiMessageSequence midiSequence;
+    
+    // Audio
+    juce::File audioFile;
+    
+    // Appearance
+    juce::Colour clipColor = juce::Colours::lightblue;
+    
+    // Audio properties
+    float gain = 1.0f;
+    double fadeIn = 0.0;
+    double fadeOut = 0.0;
+    
+    // Helper
+    double getEndBeat() const { return startBeat + lengthBeats; }
+};
+
+//==============================================================================
+struct Track
+{
+    TrackType type = TrackType::Midi;
+    juce::String name;
+    
+    // Clips
+    std::vector<Clip> clips;
+    
+    // Plugins
+    std::vector<std::shared_ptr<PluginSlot>> insertPlugins;
+    
+    // Mixer
+    float volume = 1.0f;
+    float pan = 0.0f;
+    bool mute = false;
+    bool solo = false;
+    bool arm = false;
+    
+    juce::Colour trackColor = juce::Colours::grey;
+};

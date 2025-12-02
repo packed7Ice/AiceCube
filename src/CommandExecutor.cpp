@@ -1,7 +1,7 @@
 #include "CommandExecutor.h"
 
-CommandExecutor::CommandExecutor(AppState& state, ApiClient& client)
-    : appState(state), apiClient(client)
+CommandExecutor::CommandExecutor(ProjectState& state, ApiClient& client)
+    : projectState(state), apiClient(client)
 {
 }
 
@@ -9,24 +9,31 @@ void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const 
 {
     if (cmd.action == AgentAction::Generate || cmd.action == AgentAction::Replace || cmd.action == AgentAction::Extend)
     {
-        // logCallback("Sending request to server for " + cmd.targetTrackName + " (" + cmd.style + ")...");
-        
         apiClient.generateMelody(cmd, [=](const Sequence& seq) {
-            // logCallback("Received " + juce::String(seq.notes.size()) + " notes from server.");
             
             // Convert Sequence to Clip
             Clip newClip;
-            newClip.notes = seq.notes;
-            newClip.startBeat = (double)(cmd.barsStart - 1) * 4.0; // Assume 4/4
-            newClip.lengthBeats = (double)(cmd.barsEnd - cmd.barsStart + 1) * 4.0;
+            newClip.startBeat = 0.0; // Simplify for now
+            newClip.lengthBeats = 4.0; // Default
+            newClip.name = "Generated Clip";
+            newClip.isMidi = true;
+            
+            for (const auto& n : seq.notes)
+            {
+                auto message = juce::MidiMessage::noteOn(1, n.pitch, (float)n.velocity / 127.0f);
+                newClip.midiSequence.addEvent(message, n.startTime);
+                auto off = juce::MidiMessage::noteOff(1, n.pitch);
+                newClip.midiSequence.addEvent(off, n.startTime + n.duration);
+            }
+            newClip.midiSequence.updateMatchedPairs();
             
             // Find or create track
             int trackIndex = -1;
-            juce::String targetName = cmd.targetTrackName.isNotEmpty() ? cmd.targetTrackName : "Melody";
+            juce::String targetName = cmd.targetTrackName;
             
-            for (int i = 0; i < appState.tracks.size(); ++i)
+            for (int i = 0; i < projectState.tracks.size(); ++i)
             {
-                if (appState.tracks[i].name.equalsIgnoreCase(targetName))
+                if (projectState.tracks[i]->name == targetName)
                 {
                     trackIndex = i;
                     break;
@@ -35,30 +42,14 @@ void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const 
             
             if (trackIndex == -1)
             {
-                appState.addTrack(targetName);
-                trackIndex = appState.tracks.size() - 1;
-                // logCallback("Created new track: " + targetName);
+                projectState.addTrack(TrackType::Midi, targetName);
+                trackIndex = (int)projectState.tracks.size() - 1;
             }
             
-            // If Replace, clear existing clips in range (simplified: clear all for now or just add)
-            if (cmd.action == AgentAction::Replace)
-            {
-                appState.tracks.getReference(trackIndex).clips.clear(); // Simple clear
-            }
-
-            appState.addClip(trackIndex, newClip);
-            // logCallback("Added clip to track " + targetName);
+            // Add Clip
+            projectState.addClip(trackIndex, newClip);
             
             if (completeCallback) completeCallback();
         });
-    }
-    else if (cmd.action == AgentAction::ClearRegion)
-    {
-        // Implement Clear
-        // logCallback("Clear command not fully implemented yet.");
-    }
-    else
-    {
-        // logCallback("Command action not yet implemented.");
     }
 }

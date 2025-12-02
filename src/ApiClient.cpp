@@ -108,10 +108,10 @@ void ApiClient::performRequest(const PendingRequest& req)
                     auto noteObj = notesArray[i];
                     Note n;
                     n.pitch = noteObj["pitch"];
-                    n.start = noteObj["start"];
+                    n.startTime = noteObj["start"];
                     n.duration = noteObj["duration"];
                     n.velocity = noteObj["velocity"];
-                    seq.notes.add(n);
+                    seq.notes.push_back(n);
                 }
             }
             

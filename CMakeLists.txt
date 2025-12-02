@@ -23,31 +23,41 @@ target_sources(AiceCube PRIVATE
     src/Main.cpp
     src/MainComponent.cpp
     src/MainComponent.h
+    
+    # Model
+    src/model/MusicData.h
+    src/model/ProjectState.cpp
+    src/model/ProjectState.h
+    
+    # Engine
+    src/engine/AudioEngine.cpp
+    src/engine/AudioEngine.h
+    
+    # Components
+    src/components/TransportBarComponent.cpp
+    src/components/TransportBarComponent.h
+    src/components/TrackHeaderListComponent.cpp
+    src/components/TrackHeaderListComponent.h
+    src/components/TrackHeaderComponent.cpp
+    src/components/TrackHeaderComponent.h
+    src/components/TimelineComponent.cpp
+    src/components/TimelineComponent.h
+    src/components/ClipComponent.cpp
+    src/components/ClipComponent.h
+    src/components/MixerComponent.cpp
+    src/components/MixerComponent.h
+    src/components/BrowserComponent.cpp
+    src/components/BrowserComponent.h
+    
+    # Agent / Legacy
     src/AgentPanel.cpp
     src/AgentPanel.h
     src/AgentLogic.cpp
     src/AgentLogic.h
     src/ApiClient.cpp
     src/ApiClient.h
-    src/PianoRollComponent.cpp
-    src/PianoRollComponent.h
-    src/SimpleSynth.h
-    src/AppState.cpp
-    src/AppState.h
-    src/TransportBarComponent.cpp
-    src/TransportBarComponent.h
-    src/LeftPaneComponent.cpp
-    src/LeftPaneComponent.h
-    src/TimelineComponent.cpp
-    src/TimelineComponent.h
-    src/RightPaneComponent.cpp
-    src/RightPaneComponent.h
     src/CommandExecutor.cpp
     src/CommandExecutor.h
-    src/AudioEngine.cpp
-    src/AudioEngine.h
-    src/TrackHeaderListComponent.cpp
-    src/TrackHeaderListComponent.h
 )
 
 # 使用する JUCE モジュール

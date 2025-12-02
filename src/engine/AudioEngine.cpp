@@ -101,10 +101,10 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                                                          bufferToFill.startSample + currentSampleOffset, 
                                                          samplesToProcess);
                 
-                renderSegment(segmentInfo, midiMessages, currentSampleOffset, currentStartBeat, samplesPerBeat, true);
-                
-                // Play Metronome for this segment
+                // Play Metronome for this segment (Before rendering tracks to ensure it's mixed in)
                 playMetronome(segmentInfo, currentStartBeat, samplesPerBeat);
+
+                renderSegment(segmentInfo, midiMessages, currentSampleOffset, currentStartBeat, samplesPerBeat, true);
                 
                 currentSampleOffset += samplesToProcess;
                 samplesRemaining -= samplesToProcess;
@@ -169,7 +169,19 @@ void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill
             else if (curve.parameterID == "Pan") track->pan = value;
         }
         
-        juce::AudioBuffer<float> trackBuffer(2, bufferToFill.numSamples);
+        // Determine required channels based on plugin requirements
+        int maxChannels = 2;
+        if (track->type == TrackType::Midi && track->instrumentPlugin && track->instrumentPlugin->instance)
+        {
+            auto* instance = track->instrumentPlugin->instance.get();
+            int ins = instance->getTotalNumInputChannels();
+            int outs = instance->getTotalNumOutputChannels();
+            maxChannels = std::max(ins, outs);
+            if (maxChannels < 2) maxChannels = 2; // Ensure at least stereo for safety
+        }
+        
+        // Allocate buffer with sufficient channels for the plugin
+        juce::AudioBuffer<float> trackBuffer(maxChannels, bufferToFill.numSamples);
         trackBuffer.clear();
         juce::MidiBuffer trackMidi;
         
@@ -211,12 +223,12 @@ void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill
                         auto* reader = getReaderFor(clip.audioFile);
                         if (reader)
                         {
-                            juce::AudioBuffer<float> tempBuffer(2, numSamplesToCopy);
-                            reader->read(&tempBuffer, 0, numSamplesToCopy, fileReadStartSample, true, true);
+                            juce::AudioBuffer<float> clipBuffer(2, numSamplesToCopy);
+                            reader->read(&clipBuffer, 0, numSamplesToCopy, fileReadStartSample, true, true);
                             
-                            for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), tempBuffer.getNumChannels()); ++ch)
+                            for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), clipBuffer.getNumChannels()); ++ch)
                             {
-                                trackBuffer.addFrom(ch, startSampleInBlock, tempBuffer, ch, 0, numSamplesToCopy, 1.0f);
+                                trackBuffer.addFrom(ch, startSampleInBlock, clipBuffer, ch, 0, numSamplesToCopy, 1.0f);
                             }
                         }
                     }
@@ -261,6 +273,9 @@ void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill
         {
             if (slot && slot->instance && !slot->bypassed)
             {
+                // Ensure buffer has enough channels for insert too?
+                // Ideally we should check all plugins in chain and max out channels.
+                // For now, assume inserts work with what instrument provided or stereo.
                 slot->instance->processBlock(trackBuffer, trackMidi);
             }
         }
@@ -284,7 +299,17 @@ void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill
         // Mix to Main
         for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
         {
-            bufferToFill.buffer->addFrom(ch, bufferToFill.startSample, trackBuffer, ch, 0, trackBuffer.getNumSamples(), track->volume);
+            // If track is mono, mix to both L and R (or pan)
+            // If track is stereo, mix L->L, R->R
+            // If track has more channels, we usually just take first 2 for main mix
+            
+            int sourceCh = ch;
+            if (trackBuffer.getNumChannels() == 1) sourceCh = 0;
+            
+            if (sourceCh < trackBuffer.getNumChannels())
+            {
+                bufferToFill.buffer->addFrom(ch, bufferToFill.startSample, trackBuffer, sourceCh, 0, trackBuffer.getNumSamples(), track->volume);
+            }
         }
     }
     

@@ -17,10 +17,11 @@ void AppState::updatePlayhead(double deltaBeats)
     }
 }
 
-void AppState::addTrack(const juce::String& name)
+void AppState::addTrack(const juce::String& name, TrackType type)
 {
     Track t;
     t.name = name;
+    t.type = type;
     tracks.add(t);
 }
 

@@ -1,4 +1,4 @@
-#cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.15)
 
 project(AiceCube VERSION 0.1.0)
 
@@ -44,6 +44,10 @@ target_sources(AiceCube PRIVATE
     src/RightPaneComponent.h
     src/CommandExecutor.cpp
     src/CommandExecutor.h
+    src/AudioEngine.cpp
+    src/AudioEngine.h
+    src/TrackHeaderListComponent.cpp
+    src/TrackHeaderListComponent.h
 )
 
 # 使用する JUCE モジュール
@@ -51,4 +55,5 @@ target_link_libraries(AiceCube PRIVATE
     juce::juce_gui_basics
     juce::juce_gui_extra
     juce::juce_audio_utils
+    juce::juce_audio_processors
 )

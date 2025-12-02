@@ -37,6 +37,10 @@ MainComponent::MainComponent() {
       synth.allNotesOff();
       timeline.repaint();
   };
+  
+  transportBar.onImportAudioClicked = [this] {
+      importAudio();
+  };
 
   // Agent Logic (Connect RightPane's AgentPanel)
   rightPane.getAgentPanel().onCommandEntered = [this](const juce::String& command) {
@@ -73,12 +77,16 @@ MainComponent::~MainComponent()
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
     this->sampleRate = sampleRate;
+    audioEngine.prepareToPlay(sampleRate, samplesPerBlockExpected);
     synth.prepareToPlay(sampleRate, samplesPerBlockExpected);
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
-    bufferToFill.clearActiveBufferRegion();
+    // 1. Render Audio Engine (Audio Clips + Graph)
+    // This clears the buffer and renders audio clips
+    juce::MidiBuffer midiBuffer;
+    audioEngine.processAudio(bufferToFill, midiBuffer);
 
     if (appState.isPlaying)
     {
@@ -112,6 +120,8 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 
                 for (const auto& clip : track.clips)
                 {
+                    if (clip.type != ClipType::Midi) continue;
+
                     // Relative beat within clip
                     double clipRelBeat = currentBeat - clip.startBeat;
                     double clipRelNextBeat = nextBeat - clip.startBeat;
@@ -138,7 +148,7 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
             appState.playheadBeat = nextBeat;
         }
         
-        // Render Synth
+        // Render Synth (Adds to buffer)
         juce::AudioBuffer<float> synthBuffer(bufferToFill.buffer->getArrayOfWritePointers(), 
                                              bufferToFill.buffer->getNumChannels(), 
                                              bufferToFill.startSample, 
@@ -152,7 +162,60 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
 
 void MainComponent::releaseResources()
 {
+    audioEngine.releaseResources();
     synth.allNotesOff();
+}
+
+void MainComponent::importAudio()
+{
+    fChooser = std::make_unique<juce::FileChooser>("Select Audio File", juce::File(), "*.wav;*.aiff;*.flac;*.mp3");
+    fChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this](const juce::FileChooser& chooser) {
+            auto file = chooser.getResult();
+            if (file.exists())
+            {
+                Clip clip;
+                clip.type = ClipType::Audio;
+                clip.name = file.getFileName();
+                clip.audioFile = file;
+                
+                // Calculate length
+                auto* reader = audioEngine.getFormatManager().createReaderFor(file);
+                if (reader)
+                {
+                    double duration = reader->lengthInSamples / reader->sampleRate;
+                    double bpm = appState.tempoBpm;
+                    clip.lengthBeats = duration * (bpm / 60.0);
+                    delete reader;
+                }
+                else
+                {
+                    clip.lengthBeats = 4.0; // Fallback
+                }
+                
+                // Add to first audio track or create one
+                int targetTrack = -1;
+                for(int i=0; i<appState.tracks.size(); ++i) {
+                    if(appState.tracks[i].type == TrackType::Audio) {
+                        targetTrack = i;
+                        break;
+                    }
+                }
+                
+                if (targetTrack == -1) {
+                    appState.addTrack("Audio Track", TrackType::Audio);
+                    targetTrack = appState.tracks.size() - 1;
+                }
+                
+                appState.addClip(targetTrack, clip);
+                timeline.repaint();
+            }
+        });
+}
+
+void MainComponent::exportAudio()
+{
+    // Placeholder for export
 }
 
 void MainComponent::paint(juce::Graphics &g) {

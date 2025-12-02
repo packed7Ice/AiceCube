@@ -4,23 +4,20 @@ TransportBarComponent::TransportBarComponent(AppState& state) : appState(state)
 {
     addAndMakeVisible(playButton);
     addAndMakeVisible(stopButton);
+    addAndMakeVisible(importButton);
     addAndMakeVisible(tempoLabel);
-    addAndMakeVisible(positionLabel);
+    addAndMakeVisible(tempoSlider);
+    // addAndMakeVisible(positionLabel); // Removed from header in previous steps or not? Let's check header.
 
     playButton.onClick = [this] { if (onPlayClicked) onPlayClicked(); };
     stopButton.onClick = [this] { if (onStopClicked) onStopClicked(); };
+    importButton.onClick = [this] { if (onImportAudioClicked) onImportAudioClicked(); };
 
-    tempoLabel.setText(juce::String(appState.tempoBpm), juce::dontSendNotification);
-    tempoLabel.setEditable(true);
-    tempoLabel.onTextChange = [this] {
-        double newBpm = tempoLabel.getText().getDoubleValue();
-        if (newBpm > 10.0 && newBpm < 300.0)
-        {
-            appState.tempoBpm = newBpm;
-        }
-    };
+    tempoLabel.setText("BPM", juce::dontSendNotification);
     
-    positionLabel.setText("Bar: 1.0", juce::dontSendNotification); // Placeholder
+    tempoSlider.setRange(20.0, 300.0, 1.0);
+    tempoSlider.setValue(appState.tempoBpm, juce::dontSendNotification);
+    tempoSlider.onValueChange = [this] { appState.tempoBpm = tempoSlider.getValue(); };
 }
 
 void TransportBarComponent::paint(juce::Graphics& g)
@@ -32,11 +29,16 @@ void TransportBarComponent::paint(juce::Graphics& g)
 
 void TransportBarComponent::resized()
 {
-    auto bounds = getLocalBounds().reduced(4);
-    playButton.setBounds(bounds.removeFromLeft(60));
-    bounds.removeFromLeft(4);
-    stopButton.setBounds(bounds.removeFromLeft(60));
-    bounds.removeFromLeft(10);
-    tempoLabel.setBounds(bounds.removeFromLeft(100));
-    positionLabel.setBounds(bounds.removeFromLeft(100));
+    auto area = getLocalBounds().reduced(5);
+    
+    playButton.setBounds(area.removeFromLeft(60));
+    area.removeFromLeft(5);
+    stopButton.setBounds(area.removeFromLeft(60));
+    area.removeFromLeft(20);
+    
+    importButton.setBounds(area.removeFromLeft(60));
+    area.removeFromLeft(20);
+    
+    tempoLabel.setBounds(area.removeFromLeft(40));
+    tempoSlider.setBounds(area.removeFromLeft(100));
 }

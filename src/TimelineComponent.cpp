@@ -23,17 +23,27 @@ void TimelineComponent::paint(juce::Graphics& g)
         // Draw Track Background (Alternating?)
         g.setColour(juce::Colours::white.withAlpha(0.05f));
         g.drawRect(0, y, getWidth(), trackHeight);
+        g.setColour(juce::Colours::grey.withAlpha(0.5f));
+        g.drawHorizontalLine(y + trackHeight, 0.0f, (float)getWidth());
 
         // Draw Clips
-        g.setColour(juce::Colours::orange.withAlpha(0.8f));
         for (const auto& clip : track.clips)
         {
             float x = (float)(clip.startBeat * pixelsPerBeat);
             float w = (float)(clip.lengthBeats * pixelsPerBeat);
+            
+            if (clip.type == ClipType::Audio)
+                g.setColour(juce::Colours::lightblue.withAlpha(0.8f));
+            else
+                g.setColour(juce::Colours::orange.withAlpha(0.8f));
+                
             g.fillRect(x, (float)y + 2, w, (float)trackHeight - 4);
+            
             g.setColour(juce::Colours::black);
             g.drawRect(x, (float)y + 2, w, (float)trackHeight - 4);
-            g.setColour(juce::Colours::orange.withAlpha(0.8f));
+            
+            g.setColour(juce::Colours::black);
+            g.drawText(clip.name, (int)x + 2, y + 2, (int)w - 4, trackHeight - 4, juce::Justification::centredLeft, true);
         }
 
         y += trackHeight;
@@ -71,6 +81,19 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
                 
                 return; // Found clip
             }
+        }
+        
+        // Double click on empty space -> Add Clip
+        if (e.mods.isLeftButtonDown() && e.getNumberOfClicks() == 2)
+        {
+            Clip newClip;
+            newClip.startBeat = std::floor(beat); // Snap to beat
+            newClip.lengthBeats = 4.0;
+            newClip.type = (track.type == TrackType::Audio) ? ClipType::Audio : ClipType::Midi;
+            newClip.name = (newClip.type == ClipType::Audio) ? "Audio Clip" : "Midi Clip";
+            
+            appState.addClip(trackIndex, newClip);
+            repaint();
         }
     }
     

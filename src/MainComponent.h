@@ -5,6 +5,7 @@
 #include "RightPaneComponent.h"
 #include "ApiClient.h"
 #include "SimpleSynth.h"
+#include "AudioEngine.h"
 
 #include "CommandExecutor.h"
 
@@ -22,6 +23,9 @@ public:
   void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
   void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override;
   void releaseResources() override;
+  
+  void importAudio();
+  void exportAudio();
 
 private:
   AppState appState;
@@ -34,7 +38,10 @@ private:
   
   ApiClient apiClient;
   SimpleSynth synth;
+  AudioEngine audioEngine{ appState };
   CommandExecutor commandExecutor{ appState, apiClient };
+  
+  std::unique_ptr<juce::FileChooser> fChooser;
   
   double sampleRate = 44100.0;
   bool showPianoRoll = false; // View state

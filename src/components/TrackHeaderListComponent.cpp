@@ -1,6 +1,7 @@
 #include "TrackHeaderListComponent.h"
 
-TrackHeaderListComponent::TrackHeaderListComponent(ProjectState& state) : projectState(state)
+TrackHeaderListComponent::TrackHeaderListComponent(ProjectState& state, AudioEngine& engine) 
+    : projectState(state), audioEngine(engine)
 {
     addAndMakeVisible(addTrackButton);
     addTrackButton.onClick = [this] {
@@ -8,9 +9,30 @@ TrackHeaderListComponent::TrackHeaderListComponent(ProjectState& state) : projec
         m.addItem(1, "Add Audio Track");
         m.addItem(2, "Add MIDI Track");
         
-        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+        juce::PopupMenu instMenu;
+        int id = 100;
+        std::vector<juce::PluginDescription> instruments;
+        
+        for (const auto& desc : audioEngine.getKnownPluginList().getTypes())
+        {
+            if (desc.isInstrument)
+            {
+                instMenu.addItem(id, desc.name);
+                instruments.push_back(desc);
+                id++;
+            }
+        }
+        m.addSubMenu("Add Instrument Track", instMenu);
+        
+        m.showMenuAsync(juce::PopupMenu::Options(), [this, instruments](int result) {
             if (result == 1) projectState.addTrack(TrackType::Audio, "Audio Track");
             else if (result == 2) projectState.addTrack(TrackType::Midi, "Midi Track");
+            else if (result >= 100 && result < 100 + instruments.size())
+            {
+                auto& desc = instruments[result - 100];
+                auto track = projectState.addTrack(TrackType::Midi, desc.name);
+                audioEngine.setInstrumentPlugin(track.get(), desc);
+            }
             
             if (result != 0) updateTrackList();
         });
@@ -45,6 +67,9 @@ void TrackHeaderListComponent::updateTrackList()
     for (int i = 0; i < projectState.tracks.size(); ++i)
     {
         auto* header = new TrackHeaderComponent(projectState.tracks[i]);
+        header->onPluginButtonClicked = [this](Track* t) {
+            audioEngine.openPluginWindow(t);
+        };
         headers.add(header);
         addAndMakeVisible(header);
     }

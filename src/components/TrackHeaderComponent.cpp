@@ -71,7 +71,18 @@ TrackHeaderComponent::TrackHeaderComponent(std::shared_ptr<Track> t) : track(t)
     panSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     panSlider.setRange(-1.0, 1.0);
     panSlider.setValue(track->pan, juce::dontSendNotification);
+    panSlider.setValue(track->pan, juce::dontSendNotification);
     panSlider.onValueChange = [this] { track->pan = (float)panSlider.getValue(); };
+    
+    addAndMakeVisible(pluginButton);
+    pluginButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkblue);
+    pluginButton.onClick = [this] { if (onPluginButtonClicked) onPluginButtonClicked(track.get()); };
+    
+    // Only show if plugin exists
+    if (track->instrumentPlugin && track->instrumentPlugin->identifier.isNotEmpty())
+        pluginButton.setVisible(true);
+    else
+        pluginButton.setVisible(false);
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g)
@@ -117,4 +128,10 @@ void TrackHeaderComponent::resized()
     area.removeFromTop(4);
     
     panSlider.setBounds(area.removeFromLeft(30));
+    
+    if (pluginButton.isVisible())
+    {
+        area.removeFromLeft(4);
+        pluginButton.setBounds(area.removeFromLeft(40));
+    }
 }

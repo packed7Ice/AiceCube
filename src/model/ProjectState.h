@@ -17,7 +17,9 @@ public:
     bool isPlaying = false;
     bool isLooping = false;
     double loopStart = 0.0;
+
     double loopEnd = 4.0;
+    bool metronomeEnabled = false;
 
     // Data
     // Using shared_ptr for Tracks to allow easy management
@@ -27,8 +29,9 @@ public:
     juce::ValueTree serializationRoot { "Project" };
 
     // Methods
-    void addTrack(TrackType type, const juce::String& name);
+    std::shared_ptr<Track> addTrack(TrackType type, const juce::String& name);
     void addClip(int trackIndex, const Clip& clip);
+    void addClip(int trackIndex, double startBeat, double lengthBeats);
     
     // Helpers
     Track* getTrack(int index) {

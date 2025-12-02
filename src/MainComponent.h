@@ -25,6 +25,12 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    // File Operations
+    void saveProject();
+    void loadProject();
+    void importMidi();
+    void exportMidi();
 
 private:
     // Model & Engine
@@ -40,7 +46,10 @@ private:
     TrackHeaderListComponent trackHeaders;
     TimelineComponent timeline;
     MixerComponent mixer;
-    BrowserComponent browser;
+    PianoRollEditorComponent pianoRoll;
+    bool showPianoRoll = false;
+    
+    juce::Component::SafePointer<juce::DocumentWindow> fileBrowserWindow;
     
     AgentPanel agentPanel;
     

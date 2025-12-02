@@ -18,6 +18,8 @@ public:
     std::function<void()> onImportAudioClicked;
     std::function<void()> onSaveClicked;
     std::function<void()> onLoadClicked;
+    std::function<void()> onSettingsClicked;
+    std::function<void()> onFilesClicked;
 
 private:
     ProjectState& projectState;
@@ -28,6 +30,10 @@ private:
     juce::TextButton importButton{ "Import" };
     juce::TextButton saveButton{ "Save" };
     juce::TextButton loadButton{ "Load" };
+    juce::TextButton settingsButton{ "Settings" };
+    juce::TextButton filesButton{ "Files" };
+    juce::TextButton metronomeButton{ "Metronome" };
+    juce::TextButton loopButton{ "Loop" };
     juce::Label tempoLabel;
     juce::Slider tempoSlider;
 

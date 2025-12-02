@@ -43,6 +43,10 @@ private:
     int draggingAutomationPointIndex = -1;
     const float automationPointRadius = 6.0f;
     
+    // Loop Editing
+    bool isDraggingLoop = false;
+    double loopDragStartBeat = 0.0;
+    
     // Helpers
     double xToBeats(int x) const { return (x + scrollX) / pixelsPerBeat; }
     int beatsToX(double beats) const { return (int)(beats * pixelsPerBeat - scrollX); }

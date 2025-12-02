@@ -10,21 +10,11 @@ BrowserComponent::BrowserComponent()
     fileTree.reset(new juce::FileTreeComponent(*directoryList));
     fileTree->setDragAndDropDescription("FileDrag");
     
-    // Setup Tabs
-    tabs.addTab("Files", juce::Colours::darkgrey, fileTree.get(), false);
-    tabs.addTab("Plugins", juce::Colours::darkgrey, &pluginList, false);
-    tabs.addTab("Presets", juce::Colours::darkgrey, &presetList, false);
-    
-    addAndMakeVisible(tabs);
+    addAndMakeVisible(fileTree.get());
 }
 
 BrowserComponent::~BrowserComponent()
 {
-    // Tabs hold pointers to components, but we own them (except generic lists which are members)
-    // fileTree is unique_ptr, so we need to make sure tabs don't delete it.
-    // We passed 'false' to addTab, so tabs won't delete them.
-    
-    // Stop thread
     thread.stopThread(1000);
 }
 
@@ -35,5 +25,6 @@ void BrowserComponent::paint(juce::Graphics& g)
 
 void BrowserComponent::resized()
 {
-    tabs.setBounds(getLocalBounds());
+    if (fileTree)
+        fileTree->setBounds(getLocalBounds());
 }

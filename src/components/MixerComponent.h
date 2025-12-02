@@ -19,6 +19,7 @@ private:
     ProjectState& projectState;
     AudioEngine& audioEngine;
     std::vector<std::unique_ptr<juce::Component>> strips;
+    juce::TextButton addBusButton { "Add Bus" };
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerComponent)
 };

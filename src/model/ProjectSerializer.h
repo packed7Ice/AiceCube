@@ -113,17 +113,48 @@ private:
         }
         obj->setProperty("automation", curvesArray);
 
+        obj->setProperty("id", track.id.toString());
+        
+        juce::Array<juce::var> sendsArray;
+        for (const auto& send : track.sends)
+        {
+            juce::DynamicObject* sObj = new juce::DynamicObject();
+            sObj->setProperty("targetId", send.targetTrackId.toString());
+            sObj->setProperty("amount", send.amount);
+            sObj->setProperty("active", send.active);
+            sendsArray.add(juce::var(sObj));
+        }
+        obj->setProperty("sends", sendsArray);
+
         return juce::var(obj);
     }
     
     static void varToTrack(const juce::var& v, Track& track)
     {
+        if (v.hasProperty("id"))
+            track.id = juce::Uuid(v["id"].toString());
+        else
+            track.id = juce::Uuid();
+            
         track.name = v["name"].toString();
         track.type = (TrackType)(int)v["type"];
         track.volume = (float)v["volume"];
         track.pan = (float)v["pan"];
         track.mute = (bool)v["mute"];
         track.solo = (bool)v["solo"];
+        
+        auto sendsArray = v["sends"].getArray();
+        if (sendsArray)
+        {
+            for (auto& s : *sendsArray)
+            {
+                Send send;
+                send.targetTrackId = juce::Uuid(s["targetId"].toString());
+                send.amount = (float)s["amount"];
+                send.active = (bool)s["active"];
+                track.sends.push_back(send);
+            }
+        }
         
         auto clipsArray = v["clips"].getArray();
         if (clipsArray)

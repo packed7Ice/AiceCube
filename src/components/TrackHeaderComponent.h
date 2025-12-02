@@ -1,6 +1,6 @@
 #pragma once
-#pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 #include "../model/MusicData.h"
 
 class TrackHeaderComponent : public juce::Component
@@ -11,6 +11,8 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    std::function<void(Track*)> onPluginButtonClicked;
 
 private:
     std::shared_ptr<Track> track;
@@ -22,6 +24,7 @@ private:
     juce::TextButton automationButton{ "A" };
     juce::Slider volumeSlider;
     juce::Slider panSlider;
+    juce::TextButton pluginButton{ "VST" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

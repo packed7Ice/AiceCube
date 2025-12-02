@@ -25,6 +25,29 @@ void TimelineComponent::paint(juce::Graphics& g)
         g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
     }
     
+    // Draw Loop Region
+    if (projectState.isLooping)
+    {
+        int x1 = beatsToX(projectState.loopStart);
+        int x2 = beatsToX(projectState.loopEnd);
+        
+        g.setColour(juce::Colours::green.withAlpha(0.1f));
+        g.fillRect(x1, 0, x2 - x1, getHeight());
+        
+        g.setColour(juce::Colours::green);
+        g.drawVerticalLine(x1, 0.0f, (float)getHeight());
+        g.drawVerticalLine(x2, 0.0f, (float)getHeight());
+        
+        // Markers
+        juce::Path startMarker;
+        startMarker.addTriangle((float)x1, 0.0f, (float)x1 + 10.0f, 0.0f, (float)x1, 10.0f);
+        g.fillPath(startMarker);
+        
+        juce::Path endMarker;
+        endMarker.addTriangle((float)x2, 0.0f, (float)x2 - 10.0f, 0.0f, (float)x2, 10.0f);
+        g.fillPath(endMarker);
+    }
+    
     // Draw Track Separators and Automation
     g.setColour(juce::Colours::white.withAlpha(0.2f));
     for (int i = 0; i < projectState.tracks.size(); ++i)
@@ -97,6 +120,57 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
 {
     grabKeyboardFocus();
     
+    // Right Click (Track Context Menu)
+    if (e.mods.isRightButtonDown())
+    {
+        int trackIndex = yToTrackIndex(e.y);
+        if (trackIndex >= 0 && trackIndex < projectState.tracks.size())
+        {
+            juce::PopupMenu m;
+            m.addItem(1, "Add Clip");
+            
+            m.showMenuAsync(juce::PopupMenu::Options(), [this, trackIndex, e](int result) {
+                if (result == 1)
+                {
+                    double beat = xToBeats(e.x);
+                    if (snapEnabled) beat = std::round(beat / snapResolution) * snapResolution;
+                    projectState.addClip(trackIndex, beat, 4.0);
+                    updateTimeline();
+                }
+            });
+        }
+        return;
+    }
+    
+    // Add Clip (Double Click)
+    if (e.getNumberOfClicks() == 2 && !e.mods.isAltDown())
+    {
+        int trackIndex = yToTrackIndex(e.y);
+        if (trackIndex >= 0 && trackIndex < projectState.tracks.size())
+        {
+            double beat = xToBeats(e.x);
+            if (snapEnabled) beat = std::round(beat / snapResolution) * snapResolution;
+            projectState.addClip(trackIndex, beat, 4.0);
+            updateTimeline();
+            return;
+        }
+    }
+    
+    // Loop Range Setting (Ctrl + Drag)
+    if (e.mods.isCtrlDown())
+    {
+        isDraggingLoop = true;
+        loopDragStartBeat = xToBeats(e.x);
+        if (snapEnabled) loopDragStartBeat = std::round(loopDragStartBeat / snapResolution) * snapResolution;
+        if (loopDragStartBeat < 0) loopDragStartBeat = 0;
+        
+        projectState.loopStart = loopDragStartBeat;
+        projectState.loopEnd = loopDragStartBeat;
+        projectState.isLooping = true;
+        repaint();
+        return;
+    }
+    
     // Automation Editing
     draggingAutomationTrackIndex = -1;
     draggingAutomationPointIndex = -1;
@@ -136,8 +210,7 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
                 }
             }
             
-            // Add point if clicking near curve (simplified: just click in track if automation is active)
-            // Ideally we check distance to line segments, but for now allow adding anywhere in track if active
+            // Add point if clicking near curve
             if (e.mods.isAltDown() || e.getNumberOfClicks() == 2) // Alt+Click or Double Click to add
             {
                 double beat = xToBeats(e.x);
@@ -184,11 +257,6 @@ void TimelineComponent::mouseDrag(const juce::MouseEvent& e)
     if (draggingAutomationTrackIndex >= 0 && draggingAutomationPointIndex >= 0)
     {
         auto& track = projectState.tracks[draggingAutomationTrackIndex];
-        // Assuming single active curve for now or finding the first active one
-        // We should really track which curve we are editing.
-        // For simplicity, we iterate again or store curve index.
-        // Let's assume we are editing the first active curve found in mouseDown logic.
-        // To be robust, we should store curve index. But for now, let's just find the active one again.
         
         for (auto& curve : track->automationCurves)
         {
@@ -210,6 +278,30 @@ void TimelineComponent::mouseDrag(const juce::MouseEvent& e)
             }
             break; // Only edit one curve
         }
+        return;
+    }
+
+    if (isDraggingLoop)
+    {
+        double currentBeat = xToBeats(e.x);
+        if (snapEnabled) currentBeat = std::round(currentBeat / snapResolution) * snapResolution;
+        if (currentBeat < 0) currentBeat = 0;
+        
+        if (currentBeat < loopDragStartBeat)
+        {
+            projectState.loopStart = currentBeat;
+            projectState.loopEnd = loopDragStartBeat;
+        }
+        else
+        {
+            projectState.loopStart = loopDragStartBeat;
+            projectState.loopEnd = currentBeat;
+        }
+        
+        // Ensure minimum loop length
+        if (projectState.loopEnd <= projectState.loopStart) projectState.loopEnd = projectState.loopStart + 0.1;
+        
+        repaint();
         return;
     }
 
@@ -238,6 +330,13 @@ void TimelineComponent::mouseUp(const juce::MouseEvent& e)
         }
         draggingAutomationTrackIndex = -1;
         draggingAutomationPointIndex = -1;
+        repaint();
+        return;
+    }
+    
+    if (isDraggingLoop)
+    {
+        isDraggingLoop = false;
         repaint();
         return;
     }
@@ -301,12 +400,47 @@ void TimelineComponent::selectClipsInRect(const juce::Rectangle<int>& rect)
 
 void TimelineComponent::deleteSelectedClips()
 {
-    // Placeholder
+    for (auto& track : projectState.tracks)
+    {
+        auto it = std::remove_if(track->clips.begin(), track->clips.end(), [this](const Clip& c) {
+            for (auto* sel : selectedClips)
+            {
+                if (sel == &c) return true;
+            }
+            return false;
+        });
+        track->clips.erase(it, track->clips.end());
+    }
+    selectedClips.clear();
+    updateTimeline();
 }
 
 void TimelineComponent::duplicateSelectedClips()
 {
-    // Placeholder
+    std::vector<std::pair<int, Clip>> newClips;
+    
+    for (int i = 0; i < projectState.tracks.size(); ++i)
+    {
+        auto& track = projectState.tracks[i];
+        for (const auto& clip : track->clips)
+        {
+            for (auto* sel : selectedClips)
+            {
+                if (sel == &clip)
+                {
+                    Clip copy = clip;
+                    copy.startBeat += copy.lengthBeats;
+                    newClips.push_back({i, copy});
+                }
+            }
+        }
+    }
+    
+    for (auto& pair : newClips)
+    {
+        projectState.addClip(pair.first, pair.second);
+    }
+    updateTimeline();
 }
 
 void TimelineComponent::splitClipAtPlayhead()
@@ -332,6 +466,28 @@ void TimelineComponent::updateTimeline()
             cc->setBounds(x, y, w, h);
             cc->onClipDoubleClicked = [this](Clip& c) {
                 if (onClipEditRequested) onClipEditRequested(c);
+            };
+            
+            cc->onClipRightClicked = [this](Clip& c, const juce::MouseEvent& e) {
+                // Select this clip
+                selectedClips.clear();
+                selectedClips.push_back(&c);
+                repaint();
+                
+                juce::PopupMenu m;
+                m.addItem(1, "Delete");
+                m.addItem(2, "Duplicate");
+                
+                m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+                    if (result == 1)
+                    {
+                        deleteSelectedClips();
+                    }
+                    else if (result == 2)
+                    {
+                        duplicateSelectedClips();
+                    }
+                });
             };
             
             addAndMakeVisible(cc);

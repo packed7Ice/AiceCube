@@ -5,7 +5,8 @@
 class MixerChannelStrip : public juce::Component
 {
 public:
-    MixerChannelStrip(std::shared_ptr<Track> t, AudioEngine& e) : track(t), audioEngine(e)
+    MixerChannelStrip(std::shared_ptr<Track> t, AudioEngine& e, ProjectState& s) 
+        : track(t), audioEngine(e), projectState(s)
     {
         addAndMakeVisible(nameLabel);
         nameLabel.setText(track->name, juce::dontSendNotification);
@@ -56,6 +57,26 @@ public:
             btn->onClick = [this, i] { showInsertMenu(i); };
         }
         updateInsertButtons();
+
+        // Sends
+        for (int i = 0; i < 2; ++i)
+        {
+            auto* btn = new juce::TextButton("Send " + juce::String(i + 1));
+            addAndMakeVisible(btn);
+            sendButtons.add(btn);
+            btn->onClick = [this, i] { showSendMenu(i); };
+            
+            auto* slider = new juce::Slider();
+            slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+            slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+            slider->setRange(0.0, 1.0);
+            addAndMakeVisible(slider);
+            sendSliders.add(slider);
+            slider->onValueChange = [this, i] { 
+                if (i < track->sends.size()) track->sends[i].amount = (float)sendSliders[i]->getValue(); 
+            };
+        }
+        updateSendControls();
     }
     
     void updateInstrumentButton()
@@ -154,6 +175,66 @@ public:
         menu.showMenuAsync(juce::PopupMenu::Options());
     }
 
+    void updateSendControls()
+    {
+        for (int i = 0; i < sendButtons.size(); ++i)
+        {
+            if (i < track->sends.size())
+            {
+                // Find target name
+                juce::String name = "Send";
+                for (const auto& t : projectState.tracks)
+                {
+                    if (t->id == track->sends[i].targetTrackId)
+                    {
+                        name = t->name;
+                        break;
+                    }
+                }
+                sendButtons[i]->setButtonText(name);
+                sendSliders[i]->setValue(track->sends[i].amount, juce::dontSendNotification);
+                sendSliders[i]->setVisible(true);
+            }
+            else
+            {
+                sendButtons[i]->setButtonText("Empty");
+                sendSliders[i]->setVisible(false);
+            }
+        }
+    }
+
+    void showSendMenu(int slotIndex)
+    {
+        juce::PopupMenu menu;
+        
+        for (const auto& t : projectState.tracks)
+        {
+            if (t->type == TrackType::Bus && t->id != track->id)
+            {
+                menu.addItem(t->name, [this, slotIndex, t] {
+                    if (track->sends.size() <= slotIndex)
+                        track->sends.resize(slotIndex + 1);
+                        
+                    track->sends[slotIndex].targetTrackId = t->id;
+                    track->sends[slotIndex].amount = 0.5f;
+                    track->sends[slotIndex].active = true;
+                    
+                    updateSendControls();
+                });
+            }
+        }
+        
+        menu.addItem("Remove", [this, slotIndex] {
+            if (slotIndex < track->sends.size())
+            {
+                track->sends.erase(track->sends.begin() + slotIndex);
+                updateSendControls();
+            }
+        });
+        
+        menu.showMenuAsync(juce::PopupMenu::Options());
+    }
+
     void paint(juce::Graphics& g) override
     {
         g.fillAll(juce::Colours::darkgrey.darker(0.2f));
@@ -178,6 +259,15 @@ public:
             btn->setBounds(insertArea.removeFromTop(18).reduced(0, 1));
         }
         
+        // Sends
+        auto sendArea = area.removeFromTop(50);
+        for (int i = 0; i < sendButtons.size(); ++i)
+        {
+            auto r = sendArea.removeFromTop(25);
+            sendButtons[i]->setBounds(r.removeFromLeft(60).reduced(0, 1));
+            sendSliders[i]->setBounds(r.reduced(0, 1));
+        }
+        
         if (instrumentButton)
         {
             instrumentButton->setBounds(area.removeFromTop(20).reduced(0, 1));
@@ -198,6 +288,7 @@ public:
 private:
     std::shared_ptr<Track> track;
     AudioEngine& audioEngine;
+    ProjectState& projectState;
     juce::Label nameLabel;
     juce::Slider volumeSlider;
     juce::Slider panSlider;
@@ -206,6 +297,8 @@ private:
     
     std::unique_ptr<juce::TextButton> instrumentButton;
     juce::OwnedArray<juce::TextButton> insertButtons;
+    juce::OwnedArray<juce::TextButton> sendButtons;
+    juce::OwnedArray<juce::Slider> sendSliders;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerChannelStrip)
 };
@@ -219,6 +312,11 @@ MixerComponent::~MixerComponent()
 MixerComponent::MixerComponent(ProjectState& state, AudioEngine& engine) 
     : projectState(state), audioEngine(engine)
 {
+    addAndMakeVisible(addBusButton);
+    addBusButton.onClick = [this] {
+        projectState.addTrack(TrackType::Bus, "Bus " + juce::String(projectState.tracks.size() + 1));
+        updateMixer();
+    };
     updateMixer();
 }
 
@@ -229,6 +327,9 @@ void MixerComponent::paint(juce::Graphics& g)
 
 void MixerComponent::resized()
 {
+    auto area = getLocalBounds();
+    addBusButton.setBounds(area.removeFromRight(80).removeFromTop(30).reduced(5));
+    
     int x = 0;
     int w = 100;
     
@@ -245,7 +346,7 @@ void MixerComponent::updateMixer()
     
     for (auto& track : projectState.tracks)
     {
-        auto strip = std::make_unique<MixerChannelStrip>(track, audioEngine);
+        auto strip = std::make_unique<MixerChannelStrip>(track, audioEngine, projectState);
         addAndMakeVisible(strip.get());
         strips.push_back(std::move(strip));
     }

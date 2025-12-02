@@ -52,6 +52,8 @@ target_sources(AiceCube PRIVATE
     src/components/MixerComponent.h
     src/components/BrowserComponent.cpp
     src/components/BrowserComponent.h
+    src/components/SettingsComponent.cpp
+    src/components/SettingsComponent.h
     
     # Agent / Legacy
     src/AgentPanel.cpp

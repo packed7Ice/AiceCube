@@ -2,6 +2,8 @@
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <memory>
+#include <vector>
 
 //==============================================================================
 enum class TrackType
@@ -75,9 +77,17 @@ struct AutomationCurve
     bool active = false;
 };
 
+struct Send
+{
+    juce::Uuid targetTrackId;
+    float amount = 0.0f; // Linear gain
+    bool active = true;
+};
+
 //==============================================================================
 struct Track
 {
+    juce::Uuid id;
     TrackType type = TrackType::Midi;
     juce::String name;
     
@@ -97,6 +107,8 @@ struct Track
     bool mute = false;
     bool solo = false;
     bool arm = false;
+    
+    std::vector<Send> sends;
     
     juce::Colour trackColor = juce::Colours::grey;
 };

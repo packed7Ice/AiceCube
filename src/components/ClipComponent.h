@@ -14,6 +14,7 @@ public:
 
     std::function<void()> onClipModified;
     std::function<void(Clip&)> onClipDoubleClicked;
+    std::function<void(Clip&, const juce::MouseEvent&)> onClipRightClicked;
 
 private:
     Clip& clip;

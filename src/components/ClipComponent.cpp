@@ -22,6 +22,12 @@ void ClipComponent::mouseDown(const juce::MouseEvent& e)
     originalStartBeat = clip.startBeat;
     originalLength = clip.lengthBeats;
     
+    if (e.mods.isRightButtonDown())
+    {
+        if (onClipRightClicked) onClipRightClicked(clip, e);
+        return;
+    }
+    
     if (e.getNumberOfClicks() == 2)
     {
         if (onClipDoubleClicked) onClipDoubleClicked(clip);

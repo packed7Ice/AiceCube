@@ -5,7 +5,9 @@ AudioEngine::AudioEngine(ProjectState& state) : projectState(state)
 {
     mainProcessor = std::make_unique<juce::AudioProcessorGraph>();
     formatManager.registerBasicFormats();
+    pluginFormatManager.addFormat(new juce::VST3PluginFormat());
     backgroundThread.startThread();
+    loadPluginSearchPaths();
 }
 
 AudioEngine::~AudioEngine()
@@ -23,6 +25,17 @@ void AudioEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
     mainProcessor->prepareToPlay(sampleRate, samplesPerBlock);
     
     updateGraph();
+    
+    // Prepare all track plugins
+    for (const auto& track : projectState.tracks)
+    {
+        if (track->instrumentPlugin && track->instrumentPlugin->instance)
+            track->instrumentPlugin->instance->prepareToPlay(sampleRate, samplesPerBlock);
+            
+        for (const auto& slot : track->insertPlugins)
+            if (slot && slot->instance)
+                slot->instance->prepareToPlay(sampleRate, samplesPerBlock);
+    }
 }
 
 void AudioEngine::releaseResources()
@@ -48,54 +61,120 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
 
     bufferToFill.clearActiveBufferRegion();
     
+    double samplesPerBeat = (60.0 / projectState.tempo) * currentSampleRate;
+    
     if (projectState.isPlaying)
     {
-        double samplesPerBeat = (60.0 / projectState.tempo) * currentSampleRate;
-        double startBeat = projectState.playheadBeat;
-        double endBeat = startBeat + (bufferToFill.numSamples / samplesPerBeat);
+        int samplesRemaining = bufferToFill.numSamples;
+        int currentSampleOffset = 0;
         
-        for (const auto& track : projectState.tracks)
+        int loopCount = 0;
+        
+        while (samplesRemaining > 0 && loopCount++ < 5)
         {
-            if (track->mute) continue;
+            double currentStartBeat = projectState.playheadBeat;
+            int samplesToProcess = samplesRemaining;
             
-            // Apply Automation (Control Rate)
-            for (const auto& curve : track->automationCurves)
+            if (projectState.isLooping)
             {
-                if (!curve.active || curve.points.empty()) continue;
-                
-                // Simple linear interpolation
-                float value = 0.0f;
-                auto it = std::lower_bound(curve.points.begin(), curve.points.end(), startBeat, 
-                    [](const AutomationPoint& p, double b) { return p.time < b; });
-                
-                if (it == curve.points.begin())
+                if (currentStartBeat >= projectState.loopEnd)
                 {
-                    value = it->value;
-                }
-                else if (it == curve.points.end())
-                {
-                    value = curve.points.back().value;
-                }
-                else
-                {
-                    auto& p2 = *it;
-                    auto& p1 = *(it - 1);
-                    double t = (startBeat - p1.time) / (p2.time - p1.time);
-                    value = p1.value + (p2.value - p1.value) * (float)t;
+                    projectState.playheadBeat = projectState.loopStart;
+                    currentStartBeat = projectState.loopStart;
                 }
                 
-                if (curve.parameterID == "Volume") track->volume = value;
-                else if (curve.parameterID == "Pan") track->pan = value;
+                if (currentStartBeat < projectState.loopEnd)
+                {
+                    double beatsToLoopEnd = projectState.loopEnd - currentStartBeat;
+                    int samplesToLoopEnd = (int)(beatsToLoopEnd * samplesPerBeat);
+                    
+                    if (samplesToLoopEnd < samplesRemaining)
+                    {
+                        samplesToProcess = samplesToLoopEnd;
+                    }
+                }
             }
             
-            juce::AudioBuffer<float> trackBuffer(2, bufferToFill.numSamples);
-            trackBuffer.clear();
-            juce::MidiBuffer trackMidi;
-            
-            // 1. Generate Audio/MIDI
-            if (track->type == TrackType::Audio)
+            if (samplesToProcess > 0)
             {
-                // Render Audio Clips
+                juce::AudioSourceChannelInfo segmentInfo(bufferToFill.buffer, 
+                                                         bufferToFill.startSample + currentSampleOffset, 
+                                                         samplesToProcess);
+                
+                renderSegment(segmentInfo, midiMessages, currentSampleOffset, currentStartBeat, samplesPerBeat, true);
+                
+                currentSampleOffset += samplesToProcess;
+                samplesRemaining -= samplesToProcess;
+                projectState.playheadBeat += samplesToProcess / samplesPerBeat;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        juce::MidiBuffer emptyMidi;
+        renderSegment(bufferToFill, emptyMidi, 0, projectState.playheadBeat, samplesPerBeat, false);
+    }
+    
+    // mainProcessor->processBlock(*bufferToFill.buffer, midiMessages);
+}
+
+void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill, juce::MidiBuffer& midiMessages, int globalSampleOffset, double startBeat, double samplesPerBeat, bool generateMidi)
+{
+    double endBeat = startBeat + (bufferToFill.numSamples / samplesPerBeat);
+    
+    // 0. Prepare Bus Buffers
+    for (const auto& track : projectState.tracks)
+    {
+        if (track->type == TrackType::Bus)
+        {
+            auto& busBuf = busBuffers[track->id];
+            busBuf.setSize(2, bufferToFill.numSamples, false, false, true);
+            busBuf.clear();
+        }
+    }
+    
+    // 1. Process Audio/Midi Tracks
+    for (const auto& track : projectState.tracks)
+    {
+        if (track->mute) continue;
+        if (track->type == TrackType::Bus) continue;
+        
+        // Apply Automation
+        for (const auto& curve : track->automationCurves)
+        {
+            if (!curve.active || curve.points.empty()) continue;
+            
+            float value = 0.0f;
+            auto it = std::lower_bound(curve.points.begin(), curve.points.end(), startBeat, 
+                [](const AutomationPoint& p, double b) { return p.time < b; });
+            
+            if (it == curve.points.begin()) value = it->value;
+            else if (it == curve.points.end()) value = curve.points.back().value;
+            else
+            {
+                auto& p2 = *it;
+                auto& p1 = *(it - 1);
+                double t = (startBeat - p1.time) / (p2.time - p1.time);
+                value = p1.value + (p2.value - p1.value) * (float)t;
+            }
+            
+            if (curve.parameterID == "Volume") track->volume = value;
+            else if (curve.parameterID == "Pan") track->pan = value;
+        }
+        
+        juce::AudioBuffer<float> trackBuffer(2, bufferToFill.numSamples);
+        trackBuffer.clear();
+        juce::MidiBuffer trackMidi;
+        
+        // Generate Audio/MIDI
+        if (track->type == TrackType::Audio)
+        {
+            if (generateMidi)
+            {
                 for (const auto& clip : track->clips)
                 {
                     if (clip.isMidi) continue;
@@ -140,9 +219,11 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                     }
                 }
             }
-            else if (track->type == TrackType::Midi)
+        }
+        else if (track->type == TrackType::Midi)
+        {
+            if (generateMidi)
             {
-                // Collect MIDI Events
                 for (const auto& clip : track->clips)
                 {
                     if (!clip.isMidi) continue;
@@ -159,36 +240,80 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                             if (sampleOffset >= 0 && sampleOffset < bufferToFill.numSamples)
                             {
                                 trackMidi.addEvent(event->message, sampleOffset);
+                                midiMessages.addEvent(event->message, globalSampleOffset + sampleOffset);
                             }
                         }
                     }
                 }
-                
-                // Process Instrument Plugin
-                if (track->instrumentPlugin && track->instrumentPlugin->instance && !track->instrumentPlugin->bypassed)
-                {
-                    track->instrumentPlugin->instance->processBlock(trackBuffer, trackMidi);
-                }
             }
             
-            // 2. Process Inserts
+            if (track->instrumentPlugin && track->instrumentPlugin->instance && !track->instrumentPlugin->bypassed)
+            {
+                track->instrumentPlugin->instance->processBlock(trackBuffer, trackMidi);
+            }
+        }
+        
+        // Process Inserts
+        for (auto& slot : track->insertPlugins)
+        {
+            if (slot && slot->instance && !slot->bypassed)
+            {
+                slot->instance->processBlock(trackBuffer, trackMidi);
+            }
+        }
+        
+        // Process Sends
+        for (const auto& send : track->sends)
+        {
+            if (send.active && send.amount > 0.0f)
+            {
+                if (busBuffers.count(send.targetTrackId))
+                {
+                    auto& busBuf = busBuffers[send.targetTrackId];
+                    for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), busBuf.getNumChannels()); ++ch)
+                    {
+                        busBuf.addFrom(ch, 0, trackBuffer, ch, 0, trackBuffer.getNumSamples(), send.amount);
+                    }
+                }
+            }
+        }
+        
+        // Mix to Main
+        for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
+        {
+            bufferToFill.buffer->addFrom(ch, bufferToFill.startSample, trackBuffer, ch, 0, trackBuffer.getNumSamples(), track->volume);
+        }
+    }
+    
+    // 2. Process Bus Tracks
+    for (const auto& track : projectState.tracks)
+    {
+        if (track->mute) continue;
+        if (track->type != TrackType::Bus) continue;
+        
+        if (busBuffers.count(track->id))
+        {
+            auto& busBuf = busBuffers[track->id];
+            juce::MidiBuffer busMidi;
+            
+            // Process Inserts
             for (auto& slot : track->insertPlugins)
             {
                 if (slot && slot->instance && !slot->bypassed)
                 {
-                    slot->instance->processBlock(trackBuffer, trackMidi);
+                    slot->instance->processBlock(busBuf, busMidi);
                 }
             }
             
-            // 3. Mix to Main Buffer
+            // Mix Bus to Main
             for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
             {
-                bufferToFill.buffer->addFrom(ch, bufferToFill.startSample, trackBuffer, ch, 0, trackBuffer.getNumSamples(), track->volume);
+                bufferToFill.buffer->addFrom(ch, bufferToFill.startSample, busBuf, ch, 0, busBuf.getNumSamples(), track->volume);
             }
         }
     }
     
-    mainProcessor->processBlock(*bufferToFill.buffer, midiMessages);
+    playMetronome(bufferToFill, startBeat, samplesPerBeat);
 }
 
 void AudioEngine::startRecording()
@@ -311,7 +436,9 @@ void AudioEngine::scanPlugins()
     }
     
     juce::FileSearchPath searchPath;
-    searchPath.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+    // searchPath.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+    for (const auto& path : pluginSearchPaths)
+        searchPath.add(path);
     
     juce::AudioPluginFormat* vst3Format = nullptr;
     for (int i = 0; i < pluginFormatManager.getNumFormats(); ++i)
@@ -337,6 +464,91 @@ void AudioEngine::scanPlugins()
     
     auto xml = knownPluginList.createXml();
     xml->writeTo(knownPluginListFile);
+}
+
+void AudioEngine::scanPluginsAsync(std::function<void(const juce::String&)> onProgress, std::function<void()> onFinished)
+{
+    // Simple thread for scanning
+    juce::Thread::launch([this, onProgress, onFinished] {
+        juce::FileSearchPath searchPath;
+        for (const auto& path : pluginSearchPaths)
+            searchPath.add(path);
+            
+        juce::AudioPluginFormat* vst3Format = nullptr;
+        for (int i = 0; i < pluginFormatManager.getNumFormats(); ++i) {
+            if (pluginFormatManager.getFormat(i)->getName() == "VST3") {
+                vst3Format = pluginFormatManager.getFormat(i);
+                break;
+            }
+        }
+        
+        if (vst3Format)
+        {
+            juce::PluginDirectoryScanner scanner(knownPluginList, *vst3Format, searchPath, true, juce::File());
+            juce::String pluginName;
+            while (scanner.scanNextFile(true, pluginName))
+            {
+                if (onProgress) juce::MessageManager::callAsync([onProgress, pluginName] { onProgress(pluginName); });
+            }
+        }
+        
+        auto xml = knownPluginList.createXml();
+        xml->writeTo(knownPluginListFile);
+        
+        if (onFinished) juce::MessageManager::callAsync(onFinished);
+    });
+}
+
+void AudioEngine::addPluginSearchPath(const juce::File& path)
+{
+    if (std::find(pluginSearchPaths.begin(), pluginSearchPaths.end(), path) == pluginSearchPaths.end())
+    {
+        pluginSearchPaths.push_back(path);
+        savePluginSearchPaths();
+    }
+}
+
+void AudioEngine::removePluginSearchPath(int index)
+{
+    if (index >= 0 && index < pluginSearchPaths.size())
+    {
+        pluginSearchPaths.erase(pluginSearchPaths.begin() + index);
+        savePluginSearchPaths();
+    }
+}
+
+void AudioEngine::savePluginSearchPaths()
+{
+    juce::StringArray paths;
+    for (const auto& p : pluginSearchPaths)
+        paths.add(p.getFullPathName());
+        
+    juce::File appDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+    pluginSearchPathsFile = appDir.getChildFile("AiceCube").getChildFile("plugin_paths.txt");
+    pluginSearchPathsFile.replaceWithText(paths.joinIntoString("\n"));
+}
+
+void AudioEngine::loadPluginSearchPaths()
+{
+    juce::File appDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+    pluginSearchPathsFile = appDir.getChildFile("AiceCube").getChildFile("plugin_paths.txt");
+    
+    if (pluginSearchPathsFile.existsAsFile())
+    {
+        juce::StringArray paths;
+        paths.addLines(pluginSearchPathsFile.loadFileAsString());
+        
+        pluginSearchPaths.clear();
+        for (const auto& p : paths)
+            if (p.isNotEmpty())
+                pluginSearchPaths.push_back(juce::File(p));
+    }
+    
+    // Default if empty
+    if (pluginSearchPaths.empty())
+    {
+        pluginSearchPaths.push_back(juce::File("C:\\Program Files\\Common Files\\VST3"));
+    }
 }
 
 std::shared_ptr<juce::AudioPluginInstance> AudioEngine::loadPlugin(const juce::PluginDescription& desc)
@@ -365,6 +577,9 @@ void AudioEngine::addPluginToTrack(Track* track, int slotIndex, const juce::Plug
         track->insertPlugins[slotIndex]->instance = instance;
         track->insertPlugins[slotIndex]->identifier = desc.fileOrIdentifier;
         
+        if (currentSampleRate > 0)
+            instance->prepareToPlay(currentSampleRate, currentBlockSize);
+            
         updateGraph();
         showPluginWindow(instance.get());
     }
@@ -381,6 +596,9 @@ void AudioEngine::setInstrumentPlugin(Track* track, const juce::PluginDescriptio
         track->instrumentPlugin->instance = instance;
         track->instrumentPlugin->identifier = desc.fileOrIdentifier;
         
+        if (currentSampleRate > 0)
+            instance->prepareToPlay(currentSampleRate, currentBlockSize);
+            
         updateGraph();
         showPluginWindow(instance.get());
     }
@@ -412,5 +630,50 @@ void AudioEngine::closePluginWindow(juce::AudioPluginInstance* plugin)
         if (pluginWindows[plugin] != nullptr)
             delete pluginWindows[plugin];
         pluginWindows.erase(plugin);
+    }
+}
+
+void AudioEngine::openPluginWindow(Track* track)
+{
+    if (track && track->instrumentPlugin && track->instrumentPlugin->instance)
+    {
+        showPluginWindow(track->instrumentPlugin->instance.get());
+    }
+}
+
+void AudioEngine::playMetronome(const juce::AudioSourceChannelInfo& bufferToFill, double startBeat, double samplesPerBeat)
+{
+    if (!projectState.metronomeEnabled || !projectState.isPlaying) return;
+
+    double endBeat = startBeat + (bufferToFill.numSamples / samplesPerBeat);
+    
+    int firstBeat = (int)std::ceil(startBeat);
+    int lastBeat = (int)std::floor(endBeat);
+    
+    for (int beat = firstBeat; beat <= lastBeat; ++beat)
+    {
+        double beatTime = beat;
+        int sampleOffset = (int)((beatTime - startBeat) * samplesPerBeat);
+        
+        if (sampleOffset >= 0 && sampleOffset < bufferToFill.numSamples)
+        {
+            float frequency = (beat % projectState.timeSignatureNumerator == 0) ? 1000.0f : 500.0f;
+            float length = 0.05f; 
+            int lengthSamples = (int)(length * currentSampleRate);
+            
+            for (int i = 0; i < lengthSamples; ++i)
+            {
+                if (sampleOffset + i >= bufferToFill.numSamples) break;
+                
+                float sample = std::sin(2.0f * juce::MathConstants<float>::pi * frequency * (i / currentSampleRate));
+                sample *= 0.5f; 
+                sample *= (1.0f - (float)i / lengthSamples);
+                
+                for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)
+                {
+                    bufferToFill.buffer->addSample(ch, bufferToFill.startSample + sampleOffset + i, sample);
+                }
+            }
+        }
     }
 }

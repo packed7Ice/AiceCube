@@ -26,10 +26,18 @@ public:
     juce::KnownPluginList& getKnownPluginList() { return knownPluginList; }
     
     void scanPlugins();
+    void scanPluginsAsync(std::function<void(const juce::String&)> onProgress, std::function<void()> onFinished);
     std::shared_ptr<juce::AudioPluginInstance> loadPlugin(const juce::PluginDescription& desc);
+    
+    void addPluginSearchPath(const juce::File& path);
+    void removePluginSearchPath(int index);
+    const std::vector<juce::File>& getPluginSearchPaths() const { return pluginSearchPaths; }
+    void savePluginSearchPaths();
+    void loadPluginSearchPaths();
     
     void addPluginToTrack(Track* track, int slotIndex, const juce::PluginDescription& desc);
     void setInstrumentPlugin(Track* track, const juce::PluginDescription& desc);
+    void openPluginWindow(Track* track);
     void showPluginWindow(juce::AudioPluginInstance* plugin);
     void closePluginWindow(juce::AudioPluginInstance* plugin);
 
@@ -49,11 +57,23 @@ private:
     double recordingStartBeat = 0.0;
     std::map<Track*, juce::File> recordingFiles; // Keep track of files to create clips
     
+    // Buses
+    std::map<juce::Uuid, juce::AudioBuffer<float>> busBuffers;
+    
+    // Metronome
+    double metronomePhase = 0.0;
+    void playMetronome(const juce::AudioSourceChannelInfo& bufferToFill, double startBeat, double samplesPerBeat);
+    
+    // Internal Rendering
+    void renderSegment(const juce::AudioSourceChannelInfo& bufferToFill, juce::MidiBuffer& midiMessages, int globalSampleOffset, double startBeat, double samplesPerBeat, bool generateMidi);
+    
     // Plugins
     juce::AudioPluginFormatManager pluginFormatManager;
     juce::KnownPluginList knownPluginList;
     std::unique_ptr<juce::PluginDirectoryScanner> pluginScanner;
     juce::File knownPluginListFile;
+    std::vector<juce::File> pluginSearchPaths;
+    juce::File pluginSearchPathsFile;
     
     // Plugin Windows
     // We use a map to keep track of windows for each plugin instance

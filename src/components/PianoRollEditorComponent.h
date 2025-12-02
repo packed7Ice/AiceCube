@@ -5,9 +5,15 @@
 class PianoRollEditorComponent : public juce::Component
 {
 public:
-    PianoRollEditorComponent(Clip& c) : clip(c)
+    PianoRollEditorComponent()
     {
         setSize(800, 600);
+    }
+    
+    void setClip(Clip* c)
+    {
+        clip = c;
+        repaint();
     }
     
     ~PianoRollEditorComponent() override {}
@@ -15,6 +21,13 @@ public:
     void paint(juce::Graphics& g) override
     {
         g.fillAll(juce::Colours::darkgrey.darker(0.5f));
+        
+        if (!clip)
+        {
+            g.setColour(juce::Colours::white);
+            g.drawText("No Clip Selected", getLocalBounds(), juce::Justification::centred, true);
+            return;
+        }
         
         auto bounds = getLocalBounds();
         auto velocityArea = bounds.removeFromBottom(velocityHeight);
@@ -25,7 +38,8 @@ public:
         g.reduceClipRegion(contentArea);
         
         g.setColour(juce::Colours::white.withAlpha(0.1f));
-        int numBeats = (int)clip.lengthBeats + 1;
+        g.setColour(juce::Colours::white.withAlpha(0.1f));
+        int numBeats = (int)clip->lengthBeats + 1;
         for (int i = 0; i < numBeats; ++i)
         {
             float x = (float)beatsToX(i);
@@ -40,15 +54,15 @@ public:
         }
         
         // 2. Draw Notes
-        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        for (int i = 0; i < clip->midiSequence.getNumEvents(); ++i)
         {
-            auto* event = clip.midiSequence.getEventPointer(i);
+            auto* event = clip->midiSequence.getEventPointer(i);
             if (event->message.isNoteOn())
             {
                 int note = event->message.getNoteNumber();
                 double startBeat = event->message.getTimeStamp();
                 
-                auto* noteOff = clip.midiSequence.getEventPointer(clip.midiSequence.getIndexOfMatchingKeyUp(i));
+                auto* noteOff = clip->midiSequence.getEventPointer(clip->midiSequence.getIndexOfMatchingKeyUp(i));
                 double endBeat = noteOff ? noteOff->message.getTimeStamp() : (startBeat + 1.0);
                 
                 double duration = endBeat - startBeat;
@@ -76,9 +90,9 @@ public:
         g.setColour(juce::Colours::white);
         g.drawHorizontalLine(velocityArea.getY(), 0.0f, (float)getWidth());
         
-        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        for (int i = 0; i < clip->midiSequence.getNumEvents(); ++i)
         {
-            auto* event = clip.midiSequence.getEventPointer(i);
+            auto* event = clip->midiSequence.getEventPointer(i);
             if (event->message.isNoteOn())
             {
                 double startBeat = event->message.getTimeStamp();
@@ -101,6 +115,8 @@ public:
     
     void mouseDown(const juce::MouseEvent& e) override
     {
+        if (!clip) return;
+
         if (e.y > getHeight() - velocityHeight)
         {
             // Velocity Edit
@@ -118,7 +134,7 @@ public:
             selectedNoteIndex = noteIdx;
             isDragging = true;
             
-            auto* event = clip.midiSequence.getEventPointer(noteIdx);
+            auto* event = clip->midiSequence.getEventPointer(noteIdx);
             originalNoteStart = event->message.getTimeStamp();
             originalNotePitch = event->message.getNoteNumber();
             
@@ -126,7 +142,7 @@ public:
             dragStartPitch = yToPitch(e.y);
             
             double noteEnd = originalNoteStart + 1.0;
-            auto* noteOff = clip.midiSequence.getEventPointer(clip.midiSequence.getIndexOfMatchingKeyUp(noteIdx));
+            auto* noteOff = clip->midiSequence.getEventPointer(clip->midiSequence.getIndexOfMatchingKeyUp(noteIdx));
             if (noteOff) noteEnd = noteOff->message.getTimeStamp();
             
             int noteRightX = beatsToX(noteEnd);
@@ -154,13 +170,13 @@ public:
                     
                     auto m = juce::MidiMessage::noteOn(1, note, (juce::uint8)100);
                     m.setTimeStamp(beat);
-                    clip.midiSequence.addEvent(m);
+                    clip->midiSequence.addEvent(m);
                     
                     auto off = juce::MidiMessage::noteOff(1, note);
                     off.setTimeStamp(beat + 1.0);
-                    clip.midiSequence.addEvent(off);
+                    clip->midiSequence.addEvent(off);
                     
-                    clip.midiSequence.updateMatchedPairs();
+                    clip->midiSequence.updateMatchedPairs();
                     repaint();
                 }
             }
@@ -178,9 +194,9 @@ public:
 
         if (selectedNoteIndex != -1 && isDragging)
         {
-            auto* noteOn = clip.midiSequence.getEventPointer(selectedNoteIndex);
-            int pairIndex = clip.midiSequence.getIndexOfMatchingKeyUp(selectedNoteIndex);
-            auto* noteOff = clip.midiSequence.getEventPointer(pairIndex);
+            auto* noteOn = clip->midiSequence.getEventPointer(selectedNoteIndex);
+            int pairIndex = clip->midiSequence.getIndexOfMatchingKeyUp(selectedNoteIndex);
+            auto* noteOff = clip->midiSequence.getEventPointer(pairIndex);
             
             if (!noteOn || !noteOff) return;
             
@@ -223,8 +239,11 @@ public:
     {
         if (isDragging || isEditingVelocity)
         {
-            clip.midiSequence.sort();
-            clip.midiSequence.updateMatchedPairs();
+            if (clip)
+            {
+                clip->midiSequence.sort();
+                clip->midiSequence.updateMatchedPairs();
+            }
             isDragging = false;
             isResizing = false;
             isEditingVelocity = false;
@@ -259,28 +278,29 @@ public:
     
     void quantize()
     {
-        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        if (!clip) return;
+        for (int i = 0; i < clip->midiSequence.getNumEvents(); ++i)
         {
-            auto* event = clip.midiSequence.getEventPointer(i);
+            auto* event = clip->midiSequence.getEventPointer(i);
             if (event->message.isNoteOn())
             {
                 double start = event->message.getTimeStamp();
                 double quantized = std::round(start / snapResolution) * snapResolution;
                 
-                auto* noteOff = clip.midiSequence.getEventPointer(clip.midiSequence.getIndexOfMatchingKeyUp(i));
+                auto* noteOff = clip->midiSequence.getEventPointer(clip->midiSequence.getIndexOfMatchingKeyUp(i));
                 double duration = noteOff ? (noteOff->message.getTimeStamp() - start) : 1.0;
                 
                 event->message.setTimeStamp(quantized);
                 if (noteOff) noteOff->message.setTimeStamp(quantized + duration);
             }
         }
-        clip.midiSequence.sort();
-        clip.midiSequence.updateMatchedPairs();
+        clip->midiSequence.sort();
+        clip->midiSequence.updateMatchedPairs();
         repaint();
     }
 
 private:
-    Clip& clip;
+    Clip* clip = nullptr;
     double pixelsPerBeat = 100.0;
     int noteHeight = 20;
     int keyboardWidth = 60;
@@ -303,15 +323,15 @@ private:
 
     int getNoteAt(int x, int y)
     {
-        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        for (int i = 0; i < clip->midiSequence.getNumEvents(); ++i)
         {
-            auto* event = clip.midiSequence.getEventPointer(i);
+            auto* event = clip->midiSequence.getEventPointer(i);
             if (event->message.isNoteOn())
             {
                 int note = event->message.getNoteNumber();
                 double startBeat = event->message.getTimeStamp();
                 
-                auto* noteOff = clip.midiSequence.getEventPointer(clip.midiSequence.getIndexOfMatchingKeyUp(i));
+                auto* noteOff = clip->midiSequence.getEventPointer(clip->midiSequence.getIndexOfMatchingKeyUp(i));
                 double endBeat = noteOff ? noteOff->message.getTimeStamp() : (startBeat + 1.0);
                 
                 int nx = beatsToX(startBeat);
@@ -340,9 +360,9 @@ private:
         int bestIdx = -1;
         double minDist = 1000.0;
         
-        for (int i = 0; i < clip.midiSequence.getNumEvents(); ++i)
+        for (int i = 0; i < clip->midiSequence.getNumEvents(); ++i)
         {
-            auto* event = clip.midiSequence.getEventPointer(i);
+            auto* event = clip->midiSequence.getEventPointer(i);
             if (event->message.isNoteOn())
             {
                 double start = event->message.getTimeStamp();
@@ -357,7 +377,7 @@ private:
         
         if (bestIdx != -1)
         {
-            auto* event = clip.midiSequence.getEventPointer(bestIdx);
+            auto* event = clip->midiSequence.getEventPointer(bestIdx);
             float vel = 1.0f - (float)(e.y - (getHeight() - velocityHeight)) / (float)velocityHeight;
             if (vel < 0) vel = 0;
             if (vel > 1) vel = 1;

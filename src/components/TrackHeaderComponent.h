@@ -13,6 +13,9 @@ public:
     void resized() override;
     
     std::function<void(Track*)> onPluginButtonClicked;
+    std::function<void(Track*)> onDeleteTrack;
+
+    void mouseDown(const juce::MouseEvent& e) override;
 
 private:
     std::shared_ptr<Track> track;

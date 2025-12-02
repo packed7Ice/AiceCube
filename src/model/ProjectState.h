@@ -30,6 +30,7 @@ public:
 
     // Methods
     std::shared_ptr<Track> addTrack(TrackType type, const juce::String& name);
+    void removeTrack(int index);
     void addClip(int trackIndex, const Clip& clip);
     void addClip(int trackIndex, double startBeat, double lengthBeats);
     

@@ -40,6 +40,7 @@ public:
     void openPluginWindow(Track* track);
     void showPluginWindow(juce::AudioPluginInstance* plugin);
     void closePluginWindow(juce::AudioPluginInstance* plugin);
+    void togglePluginWindow(Track* track);
 
     // Recording
     void startRecording();

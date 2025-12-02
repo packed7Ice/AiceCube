@@ -75,14 +75,9 @@ TrackHeaderComponent::TrackHeaderComponent(std::shared_ptr<Track> t) : track(t)
     panSlider.onValueChange = [this] { track->pan = (float)panSlider.getValue(); };
     
     addAndMakeVisible(pluginButton);
+    pluginButton.setButtonText("Inst");
     pluginButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkblue);
     pluginButton.onClick = [this] { if (onPluginButtonClicked) onPluginButtonClicked(track.get()); };
-    
-    // Only show if plugin exists
-    if (track->instrumentPlugin && track->instrumentPlugin->identifier.isNotEmpty())
-        pluginButton.setVisible(true);
-    else
-        pluginButton.setVisible(false);
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g)
@@ -109,6 +104,10 @@ void TrackHeaderComponent::resized()
     area.removeFromLeft(6); // Space for indicator
     
     auto topRow = area.removeFromTop(20);
+    
+    // Name and Inst button
+    pluginButton.setBounds(topRow.removeFromRight(40));
+    topRow.removeFromRight(4);
     nameLabel.setBounds(topRow);
     
     area.removeFromTop(4);
@@ -128,10 +127,20 @@ void TrackHeaderComponent::resized()
     area.removeFromTop(4);
     
     panSlider.setBounds(area.removeFromLeft(30));
-    
-    if (pluginButton.isVisible())
+}
+
+void TrackHeaderComponent::mouseDown(const juce::MouseEvent& e)
+{
+    if (e.mods.isPopupMenu())
     {
-        area.removeFromLeft(4);
-        pluginButton.setBounds(area.removeFromLeft(40));
+        juce::PopupMenu m;
+        m.addItem(1, "Delete Track");
+        
+        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+            if (result == 1)
+            {
+                if (onDeleteTrack) onDeleteTrack(track.get());
+            }
+        });
     }
 }

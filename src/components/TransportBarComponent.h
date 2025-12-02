@@ -19,7 +19,8 @@ public:
     std::function<void()> onSaveClicked;
     std::function<void()> onLoadClicked;
     std::function<void()> onSettingsClicked;
-    std::function<void()> onFilesClicked;
+    std::function<void()> onMixerClicked;
+    std::function<void()> onEditorClicked;
 
 private:
     ProjectState& projectState;
@@ -31,7 +32,8 @@ private:
     juce::TextButton saveButton{ "Save" };
     juce::TextButton loadButton{ "Load" };
     juce::TextButton settingsButton{ "Settings" };
-    juce::TextButton filesButton{ "Files" };
+    juce::TextButton mixerButton{ "Mixer" };
+    juce::TextButton editorButton{ "Editor" };
     juce::TextButton metronomeButton{ "Metronome" };
     juce::TextButton loopButton{ "Loop" };
     juce::Label tempoLabel;

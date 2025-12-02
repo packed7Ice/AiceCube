@@ -26,7 +26,7 @@ private:
     juce::OwnedArray<ClipComponent> clipComponents;
     
     double pixelsPerBeat = 40.0;
-    int trackHeight = 60;
+    static constexpr int trackHeight = 100;
     double scrollX = 0.0;
     
     // Snap

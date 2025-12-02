@@ -28,7 +28,7 @@ void ModernLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b
     if (shouldDrawButtonAsDown)
         baseColour = baseColour.darker(0.2f);
     else if (shouldDrawButtonAsHighlighted)
-        baseColour = baseColour.brighter(0.1f);
+        baseColour = juce::Colour(0xff00ffff);
         
     g.setColour(baseColour);
     g.fillRoundedRectangle(bounds, 4.0f);

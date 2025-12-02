@@ -10,7 +10,6 @@ TransportBarComponent::TransportBarComponent(ProjectState& state) : projectState
     addAndMakeVisible(loadButton);
     addAndMakeVisible(loadButton);
     addAndMakeVisible(settingsButton);
-    addAndMakeVisible(filesButton);
     addAndMakeVisible(tempoLabel);
     addAndMakeVisible(tempoSlider);
 
@@ -26,9 +25,13 @@ TransportBarComponent::TransportBarComponent(ProjectState& state) : projectState
     loadButton.onClick = [this] { if (onLoadClicked) onLoadClicked(); };
     settingsButton.onClick = [this] { if (onSettingsClicked) onSettingsClicked(); };
     
-    filesButton.setClickingTogglesState(true);
-    filesButton.setToggleState(true, juce::dontSendNotification); // Default visible
-    filesButton.onClick = [this] { if (onFilesClicked) onFilesClicked(); };
+    addAndMakeVisible(mixerButton);
+    mixerButton.setClickingTogglesState(true);
+    mixerButton.onClick = [this] { if (onMixerClicked) onMixerClicked(); };
+
+    addAndMakeVisible(editorButton);
+    editorButton.setClickingTogglesState(true);
+    editorButton.onClick = [this] { if (onEditorClicked) onEditorClicked(); };
     
     addAndMakeVisible(metronomeButton);
     metronomeButton.setClickingTogglesState(true);
@@ -72,7 +75,9 @@ void TransportBarComponent::resized()
     settingsButton.setBounds(area.removeFromLeft(80).reduced(2));
     settingsButton.setBounds(area.removeFromLeft(80).reduced(2));
     area.removeFromLeft(5);
-    filesButton.setBounds(area.removeFromLeft(60).reduced(2));
+    mixerButton.setBounds(area.removeFromLeft(60).reduced(2));
+    area.removeFromLeft(5);
+    editorButton.setBounds(area.removeFromLeft(60).reduced(2));
     area.removeFromLeft(5);
     metronomeButton.setBounds(area.removeFromLeft(80).reduced(2));
     area.removeFromLeft(5);

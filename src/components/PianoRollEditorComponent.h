@@ -303,7 +303,7 @@ private:
     Clip* clip = nullptr;
     double pixelsPerBeat = 100.0;
     int noteHeight = 20;
-    int keyboardWidth = 60;
+    int keyboardWidth = 200;
     int velocityHeight = 100;
     int scrollX = 0;
     int scrollY = 0;

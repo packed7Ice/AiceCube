@@ -34,7 +34,11 @@ TrackHeaderListComponent::TrackHeaderListComponent(ProjectState& state, AudioEng
                 audioEngine.setInstrumentPlugin(track.get(), desc);
             }
             
-            if (result != 0) updateTrackList();
+            if (result != 0) 
+            {
+                updateTrackList();
+                if (onTrackListChanged) onTrackListChanged();
+            }
         });
     };
     
@@ -49,7 +53,7 @@ void TrackHeaderListComponent::paint(juce::Graphics& g)
 void TrackHeaderListComponent::resized()
 {
     int y = 0;
-    int trackHeight = 60;
+    int trackHeight = 100;
     
     for (auto* header : headers)
     {
@@ -68,7 +72,27 @@ void TrackHeaderListComponent::updateTrackList()
     {
         auto* header = new TrackHeaderComponent(projectState.tracks[i]);
         header->onPluginButtonClicked = [this](Track* t) {
-            audioEngine.openPluginWindow(t);
+            audioEngine.togglePluginWindow(t);
+        };
+        header->onDeleteTrack = [this](Track* t) {
+            // Find index
+            int index = -1;
+            for (int j = 0; j < projectState.tracks.size(); ++j)
+            {
+                if (projectState.tracks[j].get() == t)
+                {
+                    index = j;
+                    break;
+                }
+            }
+            
+            if (index != -1)
+            {
+                projectState.removeTrack(index);
+                audioEngine.updateGraph();
+                updateTrackList();
+                if (onTrackListChanged) onTrackListChanged();
+            }
         };
         headers.add(header);
         addAndMakeVisible(header);

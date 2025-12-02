@@ -48,6 +48,7 @@ private:
     MixerComponent mixer;
     PianoRollEditorComponent pianoRoll;
     bool showPianoRoll = false;
+    bool showMixer = false;
     
     juce::Component::SafePointer<juce::DocumentWindow> fileBrowserWindow;
     

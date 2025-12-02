@@ -103,6 +103,9 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                 
                 renderSegment(segmentInfo, midiMessages, currentSampleOffset, currentStartBeat, samplesPerBeat, true);
                 
+                // Play Metronome for this segment
+                playMetronome(segmentInfo, currentStartBeat, samplesPerBeat);
+                
                 currentSampleOffset += samplesToProcess;
                 samplesRemaining -= samplesToProcess;
                 projectState.playheadBeat += samplesToProcess / samplesPerBeat;
@@ -312,8 +315,6 @@ void AudioEngine::renderSegment(const juce::AudioSourceChannelInfo& bufferToFill
             }
         }
     }
-    
-    playMetronome(bufferToFill, startBeat, samplesPerBeat);
 }
 
 void AudioEngine::startRecording()
@@ -641,6 +642,22 @@ void AudioEngine::openPluginWindow(Track* track)
     }
 }
 
+void AudioEngine::togglePluginWindow(Track* track)
+{
+    if (track && track->instrumentPlugin && track->instrumentPlugin->instance)
+    {
+        auto* plugin = track->instrumentPlugin->instance.get();
+        if (pluginWindows.find(plugin) != pluginWindows.end() && pluginWindows[plugin] != nullptr)
+        {
+            closePluginWindow(plugin);
+        }
+        else
+        {
+            showPluginWindow(plugin);
+        }
+    }
+}
+
 void AudioEngine::playMetronome(const juce::AudioSourceChannelInfo& bufferToFill, double startBeat, double samplesPerBeat)
 {
     if (!projectState.metronomeEnabled || !projectState.isPlaying) return;
@@ -666,7 +683,7 @@ void AudioEngine::playMetronome(const juce::AudioSourceChannelInfo& bufferToFill
                 if (sampleOffset + i >= bufferToFill.numSamples) break;
                 
                 float sample = std::sin(2.0f * juce::MathConstants<float>::pi * frequency * (i / currentSampleRate));
-                sample *= 0.5f; 
+                sample *= 0.8f; 
                 sample *= (1.0f - (float)i / lengthSamples);
                 
                 for (int ch = 0; ch < bufferToFill.buffer->getNumChannels(); ++ch)

@@ -44,16 +44,7 @@ MainComponent::MainComponent()
         opt.launchAsync();
     };
     
-    transportBar.onFilesClicked = [this] {
-        juce::PopupMenu m;
-        m.addItem(juce::PopupMenu::Item("Save Project").setAction([this] { saveProject(); }));
-        m.addItem(juce::PopupMenu::Item("Load Project").setAction([this] { loadProject(); }));
-        m.addSeparator();
-        m.addItem(juce::PopupMenu::Item("Import MIDI").setAction([this] { importMidi(); }));
-        m.addItem(juce::PopupMenu::Item("Export MIDI").setAction([this] { exportMidi(); }));
-        
-        m.showMenuAsync(juce::PopupMenu::Options());
-    };
+
 
     // Timeline Callbacks
     // Timeline Callbacks
@@ -83,11 +74,24 @@ MainComponent::MainComponent()
         }
     };
 
+    // Transport Callbacks
+    transportBar.onMixerClicked = [this] {
+        showMixer = !showMixer;
+        if (showMixer) showPianoRoll = false;
+        resized();
+    };
+
+    transportBar.onEditorClicked = [this] {
+        showPianoRoll = !showPianoRoll;
+        if (showPianoRoll) showMixer = false;
+        resized();
+    };
+
     // Initialize Plugins
     // audioEngine.scanPlugins();
     audioEngine.scanPluginsAsync(nullptr, nullptr);
     
-    setSize(1200, 800);
+    setSize(1600, 900);
 
     // Audio
     setAudioChannels(0, 2);
@@ -95,6 +99,10 @@ MainComponent::MainComponent()
     // UI
     addAndMakeVisible(transportBar);
     addAndMakeVisible(trackHeaders);
+    trackHeaders.onTrackListChanged = [this] {
+        timeline.updateTimeline();
+        timeline.repaint();
+    };
     addAndMakeVisible(timeline);
     addAndMakeVisible(mixer);
     addAndMakeVisible(pianoRoll);
@@ -143,31 +151,35 @@ void MainComponent::resized()
     // Top: Transport
     transportBar.setBounds(area.removeFromTop(40));
     
-    // Bottom: Mixer
-    // Bottom: Mixer or Piano Roll
-    // Center: Tracks + Timeline
-    auto trackHeaderWidth = 200;
-    trackHeaders.setBounds(area.removeFromLeft(trackHeaderWidth));
-    timeline.setBounds(area);
+    // Right: Agent Panel
+    agentPanel.setBounds(area.removeFromRight(300));
     
-    // Bottom Overlay: Mixer or Piano Roll
-    auto bottomHeight = 300;
-    auto overlayBounds = area.removeFromBottom(bottomHeight);
-    
+    // Bottom: Mixer or Piano Roll (Overlay or Split)
+    // If shown, take some space from bottom
     if (showPianoRoll)
     {
+        auto bottomArea = area.removeFromBottom(300);
         pianoRoll.setVisible(true);
+        pianoRoll.setBounds(bottomArea);
         mixer.setVisible(false);
-        pianoRoll.setBounds(overlayBounds);
-        pianoRoll.toFront(false);
+    }
+    else if (showMixer)
+    {
+        auto bottomArea = area.removeFromBottom(300);
+        mixer.setVisible(true);
+        mixer.setBounds(bottomArea);
+        pianoRoll.setVisible(false);
     }
     else
     {
         pianoRoll.setVisible(false);
-        mixer.setVisible(true);
-        mixer.setBounds(overlayBounds);
-        mixer.toFront(false);
+        mixer.setVisible(false);
     }
+
+    // Center: Tracks + Timeline
+    auto trackHeaderWidth = 200;
+    trackHeaders.setBounds(area.removeFromLeft(trackHeaderWidth));
+    timeline.setBounds(area);
 }
 
 void MainComponent::saveProject()

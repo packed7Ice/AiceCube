@@ -15,6 +15,8 @@ public:
     void resized() override;
     
     void updateTrackList();
+    
+    std::function<void()> onTrackListChanged;
 
 private:
     ProjectState& projectState;

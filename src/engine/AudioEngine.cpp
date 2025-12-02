@@ -4,19 +4,20 @@
 AudioEngine::AudioEngine(ProjectState& state) : projectState(state)
 {
     mainProcessor = std::make_unique<juce::AudioProcessorGraph>();
+    formatManager.registerBasicFormats();
+    backgroundThread.startThread();
 }
 
 AudioEngine::~AudioEngine()
 {
     mainProcessor = nullptr;
+    backgroundThread.stopThread(1000);
 }
 
 void AudioEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
     currentBlockSize = samplesPerBlock;
-    
-    formatManager.registerBasicFormats();
     
     mainProcessor->setPlayConfigDetails(2, 2, sampleRate, samplesPerBlock);
     mainProcessor->prepareToPlay(sampleRate, samplesPerBlock);
@@ -32,6 +33,19 @@ void AudioEngine::releaseResources()
 
 void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill, juce::MidiBuffer& midiMessages)
 {
+    // Capture Input for Recording
+    if (isRecording && !trackRecorders.empty())
+    {
+        for (auto& pair : trackRecorders)
+        {
+            auto* writer = pair.second.get();
+            if (writer)
+            {
+                writer->write(bufferToFill.buffer->getArrayOfReadPointers(), bufferToFill.numSamples);
+            }
+        }
+    }
+
     bufferToFill.clearActiveBufferRegion();
     
     if (projectState.isPlaying)
@@ -51,8 +65,6 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                 
                 // Simple linear interpolation
                 float value = 0.0f;
-                // Find points around current beat
-                // This is a very basic implementation (O(N)) - optimize later
                 auto it = std::lower_bound(curve.points.begin(), curve.points.end(), startBeat, 
                     [](const AutomationPoint& p, double b) { return p.time < b; });
                 
@@ -135,7 +147,6 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                 {
                     if (!clip.isMidi) continue;
                     
-                    // Simple MIDI collection (needs optimization for loops/large projects)
                     auto& seq = clip.midiSequence;
                     for (int i = 0; i < seq.getNumEvents(); ++i)
                     {
@@ -180,6 +191,79 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
     mainProcessor->processBlock(*bufferToFill.buffer, midiMessages);
 }
 
+void AudioEngine::startRecording()
+{
+    if (isRecording) return;
+    
+    recordingStartBeat = projectState.playheadBeat;
+    trackRecorders.clear();
+    recordingFiles.clear();
+    
+    auto docDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                  .getChildFile("AiceCube").getChildFile("Recordings");
+    docDir.createDirectory();
+    
+    for (auto& track : projectState.tracks)
+    {
+        if (track->type == TrackType::Audio && track->arm)
+        {
+            auto filename = track->name + "_" + juce::Time::getCurrentTime().formatted("%Y%m%d_%H%M%S") + ".wav";
+            auto file = docDir.getChildFile(filename);
+            recordingFiles[track.get()] = file;
+            
+            if (auto fileStream = std::unique_ptr<juce::FileOutputStream>(file.createOutputStream()))
+            {
+                juce::WavAudioFormat wavFormat;
+                if (auto writer = wavFormat.createWriterFor(fileStream.get(), currentSampleRate, 2, 16, {}, 0))
+                {
+                    fileStream.release(); // Writer takes ownership
+                    
+                    trackRecorders[track.get()] = std::make_unique<juce::AudioFormatWriter::ThreadedWriter>(
+                        writer, backgroundThread, 32768);
+                }
+            }
+        }
+    }
+    
+    if (!trackRecorders.empty())
+    {
+        isRecording = true;
+    }
+}
+
+void AudioEngine::stopRecording()
+{
+    if (!isRecording) return;
+    
+    isRecording = false;
+    trackRecorders.clear(); // Flushes and closes writers
+    
+    // Create Clips
+    double endBeat = projectState.playheadBeat;
+    double length = endBeat - recordingStartBeat;
+    
+    if (length > 0)
+    {
+        for (auto& pair : recordingFiles)
+        {
+            Track* track = pair.first;
+            juce::File file = pair.second;
+            
+            Clip newClip;
+            newClip.name = file.getFileNameWithoutExtension();
+            newClip.startBeat = recordingStartBeat;
+            newClip.lengthBeats = length;
+            newClip.isMidi = false;
+            newClip.audioFile = file;
+            newClip.trackIndex = 0;
+            
+            track->clips.push_back(newClip);
+        }
+    }
+    
+    recordingFiles.clear();
+}
+
 juce::AudioFormatReader* AudioEngine::getReaderFor(const juce::File& file)
 {
     if (file == juce::File()) return nullptr;
@@ -214,7 +298,6 @@ void AudioEngine::updateGraph()
 
 void AudioEngine::scanPlugins()
 {
-    // pluginFormatManager.addDefaultFormats();
     pluginFormatManager.addFormat(new juce::VST3PluginFormat());
     
     juce::File appDir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
@@ -228,11 +311,8 @@ void AudioEngine::scanPlugins()
     }
     
     juce::FileSearchPath searchPath;
-    // Add default VST3 path
-    // Windows: C:\Program Files\Common Files\VST3
     searchPath.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
     
-    // Find VST3 format
     juce::AudioPluginFormat* vst3Format = nullptr;
     for (int i = 0; i < pluginFormatManager.getNumFormats(); ++i)
     {
@@ -255,7 +335,6 @@ void AudioEngine::scanPlugins()
         pluginScanner = nullptr;
     }
     
-    // Save known plugins
     auto xml = knownPluginList.createXml();
     xml->writeTo(knownPluginListFile);
 }
@@ -277,7 +356,6 @@ void AudioEngine::addPluginToTrack(Track* track, int slotIndex, const juce::Plug
     auto instance = loadPlugin(desc);
     if (instance)
     {
-        // Ensure vector has enough slots
         if (track->insertPlugins.size() <= slotIndex)
             track->insertPlugins.resize(slotIndex + 1);
             

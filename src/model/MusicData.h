@@ -30,6 +30,7 @@ struct PluginSlot
     std::shared_ptr<juce::AudioPluginInstance> instance;
     bool bypassed = false;
     juce::String identifier;
+    juce::MemoryBlock state;
 };
 
 //==============================================================================

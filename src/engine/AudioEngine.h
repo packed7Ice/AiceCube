@@ -33,10 +33,21 @@ public:
     void showPluginWindow(juce::AudioPluginInstance* plugin);
     void closePluginWindow(juce::AudioPluginInstance* plugin);
 
+    // Recording
+    void startRecording();
+    void stopRecording();
+    bool isRecording = false;
+
 private:
     ProjectState& projectState;
     std::unique_ptr<juce::AudioProcessorGraph> mainProcessor;
     juce::AudioFormatManager formatManager;
+    
+    // Recording
+    juce::TimeSliceThread backgroundThread { "Audio Recorder Thread" };
+    std::map<Track*, std::unique_ptr<juce::AudioFormatWriter::ThreadedWriter>> trackRecorders;
+    double recordingStartBeat = 0.0;
+    std::map<Track*, juce::File> recordingFiles; // Keep track of files to create clips
     
     // Plugins
     juce::AudioPluginFormatManager pluginFormatManager;

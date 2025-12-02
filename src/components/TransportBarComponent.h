@@ -14,14 +14,20 @@ public:
 
     std::function<void()> onPlayClicked;
     std::function<void()> onStopClicked;
+    std::function<void()> onRecordClicked;
     std::function<void()> onImportAudioClicked;
+    std::function<void()> onSaveClicked;
+    std::function<void()> onLoadClicked;
 
 private:
     ProjectState& projectState;
     
     juce::TextButton playButton{ "Play" };
     juce::TextButton stopButton{ "Stop" };
+    juce::TextButton recordButton{ "Record" };
     juce::TextButton importButton{ "Import" };
+    juce::TextButton saveButton{ "Save" };
+    juce::TextButton loadButton{ "Load" };
     juce::Label tempoLabel;
     juce::Slider tempoSlider;
 

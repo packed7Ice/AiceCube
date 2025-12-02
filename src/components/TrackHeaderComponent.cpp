@@ -60,20 +60,6 @@ TrackHeaderComponent::TrackHeaderComponent(std::shared_ptr<Track> t) : track(t)
         // We can't easily access TimelineComponent here.
     };
     
-    addAndMakeVisible(volumeSlider);
-    volumeSlider.setSliderStyle(juce::Slider::LinearBar);
-    volumeSlider.setRange(0.0, 1.0);
-    volumeSlider.setValue(track->volume, juce::dontSendNotification);
-    volumeSlider.onValueChange = [this] { track->volume = (float)volumeSlider.getValue(); };
-    
-    addAndMakeVisible(panSlider);
-    panSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    panSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    panSlider.setRange(-1.0, 1.0);
-    panSlider.setValue(track->pan, juce::dontSendNotification);
-    panSlider.setValue(track->pan, juce::dontSendNotification);
-    panSlider.onValueChange = [this] { track->pan = (float)panSlider.getValue(); };
-    
     addAndMakeVisible(pluginButton);
     pluginButton.setButtonText("Inst");
     pluginButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkblue);
@@ -100,33 +86,27 @@ void TrackHeaderComponent::paint(juce::Graphics& g)
 
 void TrackHeaderComponent::resized()
 {
-    auto area = getLocalBounds().reduced(4);
-    area.removeFromLeft(6); // Space for indicator
+    auto area = getLocalBounds().reduced(2);
     
+    // Track Type Indicator
+    area.removeFromLeft(4); 
+    
+    // Top Row: Name + Inst
     auto topRow = area.removeFromTop(20);
-    
-    // Name and Inst button
-    pluginButton.setBounds(topRow.removeFromRight(40));
-    topRow.removeFromRight(4);
+    pluginButton.setBounds(topRow.removeFromRight(30));
+    topRow.removeFromRight(2);
     nameLabel.setBounds(topRow);
     
-    area.removeFromTop(4);
+    area.removeFromTop(2);
     
+    // Bottom Row: Buttons
     auto buttonRow = area.removeFromTop(20);
     int btnW = buttonRow.getWidth() / 4;
+    
     muteButton.setBounds(buttonRow.removeFromLeft(btnW).reduced(1));
     soloButton.setBounds(buttonRow.removeFromLeft(btnW).reduced(1));
     recButton.setBounds(buttonRow.removeFromLeft(btnW).reduced(1));
     automationButton.setBounds(buttonRow.reduced(1));
-    
-    area.removeFromTop(4);
-    
-    auto volRow = area.removeFromTop(15);
-    volumeSlider.setBounds(volRow);
-    
-    area.removeFromTop(4);
-    
-    panSlider.setBounds(area.removeFromLeft(30));
 }
 
 void TrackHeaderComponent::mouseDown(const juce::MouseEvent& e)

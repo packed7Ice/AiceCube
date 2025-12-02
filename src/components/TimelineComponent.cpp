@@ -350,16 +350,31 @@ void TimelineComponent::mouseUp(const juce::MouseEvent& e)
 
 void TimelineComponent::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
-    if (e.mods.isCommandDown()) // Zoom
+    if (e.mods.isCtrlDown()) // Zoom
     {
         pixelsPerBeat += wheel.deltaY * 10.0;
         if (pixelsPerBeat < 10.0) pixelsPerBeat = 10.0;
         if (pixelsPerBeat > 200.0) pixelsPerBeat = 200.0;
     }
-    else // Scroll
+    else if (e.mods.isShiftDown()) // Scroll X
     {
-        scrollX -= wheel.deltaX * 20.0;
+        scrollX -= wheel.deltaY * 20.0;
         if (scrollX < 0) scrollX = 0;
+    }
+    else // Scroll X (Standard) or Y?
+    {
+        // Standard vertical scroll usually scrolls Y, but we don't have Y scroll yet.
+        // Fallback to X scroll or do nothing?
+        // Let's support X scroll with horizontal wheel if available, or vertical wheel if Shift not pressed?
+        // User asked for Shift+Wheel -> Left/Right.
+        // Usually Wheel -> Up/Down.
+        // Since we don't have Y scroll, maybe Wheel -> Left/Right is fine too?
+        // But let's stick to the request.
+        if (wheel.deltaX != 0)
+        {
+            scrollX -= wheel.deltaX * 20.0;
+            if (scrollX < 0) scrollX = 0;
+        }
     }
     updateTimeline();
     repaint();

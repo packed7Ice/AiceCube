@@ -660,7 +660,7 @@ void AudioEngine::togglePluginWindow(Track* track)
 
 void AudioEngine::playMetronome(const juce::AudioSourceChannelInfo& bufferToFill, double startBeat, double samplesPerBeat)
 {
-    if (!projectState.metronomeEnabled || !projectState.isPlaying) return;
+    if (!projectState.metronomeEnabled) return;
 
     double endBeat = startBeat + (bufferToFill.numSamples / samplesPerBeat);
     

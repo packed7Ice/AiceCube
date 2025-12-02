@@ -53,7 +53,7 @@ void TrackHeaderListComponent::paint(juce::Graphics& g)
 void TrackHeaderListComponent::resized()
 {
     int y = 0;
-    int trackHeight = 100;
+    int trackHeight = 50;
     
     for (auto* header : headers)
     {

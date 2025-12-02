@@ -53,6 +53,9 @@ MainComponent::MainComponent()
         {
             pianoRoll.setClip(&clip);
             showPianoRoll = true;
+            showMixer = false;
+            transportBar.setMixerButtonState(showMixer);
+            transportBar.setEditorButtonState(showPianoRoll);
             resized();
         }
     };
@@ -78,12 +81,16 @@ MainComponent::MainComponent()
     transportBar.onMixerClicked = [this] {
         showMixer = !showMixer;
         if (showMixer) showPianoRoll = false;
+        transportBar.setMixerButtonState(showMixer);
+        transportBar.setEditorButtonState(showPianoRoll);
         resized();
     };
 
     transportBar.onEditorClicked = [this] {
         showPianoRoll = !showPianoRoll;
         if (showPianoRoll) showMixer = false;
+        transportBar.setMixerButtonState(showMixer);
+        transportBar.setEditorButtonState(showPianoRoll);
         resized();
     };
 

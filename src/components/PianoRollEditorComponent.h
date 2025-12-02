@@ -34,10 +34,48 @@ public:
         auto keyboardArea = bounds.removeFromLeft(keyboardWidth);
         auto contentArea = bounds;
         
-        // 1. Draw Grid (Content Area)
+        // 1. Draw Keyboard
+        g.setColour(juce::Colours::black);
+        g.fillRect(0, 0, keyboardWidth, getHeight());
+        
+        for (int i = 0; i < 128; ++i)
+        {
+            int pitch = 127 - i;
+            int y = pitchToY(pitch);
+            int h = noteHeight;
+            
+            bool isBlack = (pitch % 12 == 1 || pitch % 12 == 3 || pitch % 12 == 6 || pitch % 12 == 8 || pitch % 12 == 10);
+            
+            g.setColour(isBlack ? juce::Colours::black : juce::Colours::white);
+            g.fillRect(0, y, keyboardWidth, h);
+            g.setColour(juce::Colours::grey);
+            g.drawRect(0, y, keyboardWidth, h, 1);
+            
+            if (!isBlack && pitch % 12 == 0) // C
+            {
+                g.setColour(juce::Colours::black);
+                g.drawText("C" + juce::String(pitch / 12 - 1), 5, y, keyboardWidth - 10, h, juce::Justification::centredRight);
+            }
+            else if (!isBlack)
+            {
+                 juce::String noteName;
+                 int p = pitch % 12;
+                 if (p == 2) noteName = "D";
+                 else if (p == 4) noteName = "E";
+                 else if (p == 5) noteName = "F";
+                 else if (p == 7) noteName = "G";
+                 else if (p == 9) noteName = "A";
+                 else if (p == 11) noteName = "B";
+                 
+                 g.setColour(juce::Colours::black);
+                 g.setFont(10.0f);
+                 g.drawText(noteName, 5, y, keyboardWidth - 20, h, juce::Justification::centredRight);
+            }
+        }
+
+        // 2. Draw Grid (Content Area)
         g.reduceClipRegion(contentArea);
         
-        g.setColour(juce::Colours::white.withAlpha(0.1f));
         g.setColour(juce::Colours::white.withAlpha(0.1f));
         int numBeats = (int)clip->lengthBeats + 1;
         for (int i = 0; i < numBeats; ++i)
@@ -254,23 +292,20 @@ public:
 
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override
     {
-        if (e.mods.isCommandDown()) // Zoom X
+        if (e.mods.isCtrlDown()) // Zoom X
         {
             pixelsPerBeat += wheel.deltaY * 10.0;
             if (pixelsPerBeat < 10.0) pixelsPerBeat = 10.0;
             if (pixelsPerBeat > 300.0) pixelsPerBeat = 300.0;
         }
-        else if (e.mods.isShiftDown()) // Zoom Y
+        else if (e.mods.isShiftDown()) // Scroll X
         {
-            noteHeight += (int)(wheel.deltaY * 5.0);
-            if (noteHeight < 5) noteHeight = 5;
-            if (noteHeight > 50) noteHeight = 50;
-        }
-        else // Scroll
-        {
-            scrollX -= wheel.deltaX * 20.0;
-            scrollY -= wheel.deltaY * 20.0;
+            scrollX -= wheel.deltaY * 20.0; // Use deltaY for horizontal scroll with standard mouse
             if (scrollX < 0) scrollX = 0;
+        }
+        else // Scroll Y
+        {
+            scrollY -= wheel.deltaY * 20.0;
             // Limit scrollY?
         }
         repaint();

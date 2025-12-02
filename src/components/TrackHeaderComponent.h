@@ -25,8 +25,6 @@ private:
     juce::TextButton soloButton{ "S" };
     juce::TextButton recButton{ "R" };
     juce::TextButton automationButton{ "A" };
-    juce::Slider volumeSlider;
-    juce::Slider panSlider;
     juce::TextButton pluginButton{ "VST" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)

@@ -22,6 +22,9 @@ public:
     std::function<void()> onMixerClicked;
     std::function<void()> onEditorClicked;
 
+    void setMixerButtonState(bool state) { mixerButton.setToggleState(state, juce::dontSendNotification); }
+    void setEditorButtonState(bool state) { editorButton.setToggleState(state, juce::dontSendNotification); }
+
 private:
     ProjectState& projectState;
     

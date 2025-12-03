@@ -101,10 +101,10 @@ void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill,
                                                          bufferToFill.startSample + currentSampleOffset, 
                                                          samplesToProcess);
                 
-                // Play Metronome for this segment (Before rendering tracks to ensure it's mixed in)
-                playMetronome(segmentInfo, currentStartBeat, samplesPerBeat);
-
                 renderSegment(segmentInfo, midiMessages, currentSampleOffset, currentStartBeat, samplesPerBeat, true);
+                
+                // Play Metronome for this segment (After rendering tracks)
+                playMetronome(segmentInfo, currentStartBeat, samplesPerBeat);
                 
                 currentSampleOffset += samplesToProcess;
                 samplesRemaining -= samplesToProcess;

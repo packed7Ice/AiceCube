@@ -16,35 +16,57 @@ void TimelineComponent::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::black);
     
-    // Draw Grid
+    auto bounds = getLocalBounds();
+    auto rulerArea = bounds.removeFromTop(rulerHeight);
+    
+    // Draw Ruler Background
+    g.setColour(juce::Colours::darkgrey.darker());
+    g.fillRect(rulerArea);
+    
+    // Draw Grid & Ruler
     g.setColour(juce::Colours::white.withAlpha(0.1f));
-    int numBeats = 100; // Arbitrary max for now
+    int numBeats = 200; 
     for (int i = 0; i < numBeats; ++i)
     {
         float x = (float)beatsToX(i);
-        g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
+        
+        // Grid line
+        g.setColour(juce::Colours::white.withAlpha(0.1f));
+        g.drawVerticalLine((int)x, (float)rulerArea.getBottom(), (float)getHeight());
+        
+        // Ruler tick
+        g.setColour(juce::Colours::white);
+        g.drawVerticalLine((int)x, 0.0f, (float)rulerArea.getBottom());
+        
+        // Beat number
+        if (i % 4 == 0)
+        {
+            g.drawText(juce::String(i + 1), (int)x + 2, 0, 30, rulerHeight, juce::Justification::centredLeft);
+        }
     }
     
-    // Draw Loop Region
+    // Draw Loop Region (In Ruler)
     if (projectState.isLooping)
     {
         int x1 = beatsToX(projectState.loopStart);
         int x2 = beatsToX(projectState.loopEnd);
         
-        g.setColour(juce::Colours::green.withAlpha(0.1f));
-        g.fillRect(x1, 0, x2 - x1, getHeight());
+        // Loop bar in ruler
+        g.setColour(juce::Colours::cyan.withAlpha(0.5f));
+        g.fillRect(x1, 0, x2 - x1, rulerHeight);
         
-        g.setColour(juce::Colours::green);
-        g.drawVerticalLine(x1, 0.0f, (float)getHeight());
-        g.drawVerticalLine(x2, 0.0f, (float)getHeight());
+        // Loop region highlight in tracks
+        g.setColour(juce::Colours::cyan.withAlpha(0.05f));
+        g.fillRect(x1, rulerHeight, x2 - x1, getHeight() - rulerHeight);
         
         // Markers
+        g.setColour(juce::Colours::cyan);
         juce::Path startMarker;
-        startMarker.addTriangle((float)x1, 0.0f, (float)x1 + 10.0f, 0.0f, (float)x1, 10.0f);
+        startMarker.addTriangle((float)x1, 0.0f, (float)x1 + 6.0f, 0.0f, (float)x1, (float)rulerHeight);
         g.fillPath(startMarker);
         
         juce::Path endMarker;
-        endMarker.addTriangle((float)x2, 0.0f, (float)x2 - 10.0f, 0.0f, (float)x2, 10.0f);
+        endMarker.addTriangle((float)x2, 0.0f, (float)x2 - 6.0f, 0.0f, (float)x2, (float)rulerHeight);
         g.fillPath(endMarker);
     }
     
@@ -52,7 +74,7 @@ void TimelineComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::white.withAlpha(0.2f));
     for (int i = 0; i < projectState.tracks.size(); ++i)
     {
-        int y = i * trackHeight;
+        int y = rulerHeight + i * trackHeight;
         g.drawHorizontalLine(y + trackHeight, 0.0f, (float)getWidth());
         
         // Draw Automation (Overlay)
@@ -99,6 +121,11 @@ void TimelineComponent::paint(juce::Graphics& g)
         float x = (float)beatsToX(projectState.playheadBeat);
         g.setColour(juce::Colours::yellow);
         g.drawLine(x, 0.0f, x, (float)getHeight(), 2.0f);
+        
+        // Head triangle
+        juce::Path head;
+        head.addTriangle(x - 6, 0.0f, x + 6, 0.0f, x, (float)rulerHeight);
+        g.fillPath(head);
     }
     
     // Draw Selection Rect
@@ -120,10 +147,36 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
 {
     grabKeyboardFocus();
     
+    // Ruler Interaction (Loop / Playhead)
+    if (e.y < rulerHeight)
+    {
+        double beat = xToBeats(e.x);
+        if (snapEnabled) beat = std::round(beat / snapResolution) * snapResolution;
+        if (beat < 0) beat = 0;
+        
+        if (e.mods.isShiftDown()) // Loop Setting
+        {
+             isDraggingLoop = true;
+             loopDragStartBeat = beat;
+             projectState.loopStart = beat;
+             projectState.loopEnd = beat;
+             projectState.isLooping = true;
+             repaint();
+             return;
+        }
+        else
+        {
+            // Set Playhead
+            projectState.playheadBeat = beat;
+            repaint();
+            return;
+        }
+    }
+    
     // Right Click (Track Context Menu)
     if (e.mods.isRightButtonDown())
     {
-        int trackIndex = yToTrackIndex(e.y);
+        int trackIndex = (e.y - rulerHeight) / trackHeight;
         if (trackIndex >= 0 && trackIndex < projectState.tracks.size())
         {
             juce::PopupMenu m;
@@ -145,7 +198,7 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
     // Add Clip (Double Click)
     if (e.getNumberOfClicks() == 2 && !e.mods.isAltDown())
     {
-        int trackIndex = yToTrackIndex(e.y);
+        int trackIndex = (e.y - rulerHeight) / trackHeight;
         if (trackIndex >= 0 && trackIndex < projectState.tracks.size())
         {
             double beat = xToBeats(e.x);
@@ -156,30 +209,15 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
         }
     }
     
-    // Loop Range Setting (Ctrl + Drag)
-    if (e.mods.isCtrlDown())
-    {
-        isDraggingLoop = true;
-        loopDragStartBeat = xToBeats(e.x);
-        if (snapEnabled) loopDragStartBeat = std::round(loopDragStartBeat / snapResolution) * snapResolution;
-        if (loopDragStartBeat < 0) loopDragStartBeat = 0;
-        
-        projectState.loopStart = loopDragStartBeat;
-        projectState.loopEnd = loopDragStartBeat;
-        projectState.isLooping = true;
-        repaint();
-        return;
-    }
-    
     // Automation Editing
     draggingAutomationTrackIndex = -1;
     draggingAutomationPointIndex = -1;
     
-    int trackIndex = yToTrackIndex(e.y);
+    int trackIndex = (e.y - rulerHeight) / trackHeight;
     if (trackIndex >= 0 && trackIndex < projectState.tracks.size())
     {
         auto& track = projectState.tracks[trackIndex];
-        int trackY = trackIndex * trackHeight;
+        int trackY = rulerHeight + trackIndex * trackHeight;
         
         // Check active automation curves
         for (auto& curve : track->automationCurves)
@@ -237,13 +275,6 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& e)
     }
     else
     {
-        // Move Playhead
-        double beat = xToBeats(e.x);
-        if (snapEnabled) beat = std::round(beat / snapResolution) * snapResolution;
-        if (beat < 0) beat = 0;
-        projectState.playheadBeat = beat;
-        repaint();
-        
         // Deselect if clicking empty space (unless Ctrl is down)
         if (!e.mods.isCommandDown())
         {
@@ -267,7 +298,7 @@ void TimelineComponent::mouseDrag(const juce::MouseEvent& e)
                 double beat = xToBeats(e.x);
                 if (beat < 0) beat = 0;
                 
-                int trackY = draggingAutomationTrackIndex * trackHeight;
+                int trackY = rulerHeight + draggingAutomationTrackIndex * trackHeight;
                 float val = 1.0f - (float)(e.y - trackY) / trackHeight;
                 val = std::max(0.0f, std::min(1.0f, val));
                 
@@ -301,6 +332,17 @@ void TimelineComponent::mouseDrag(const juce::MouseEvent& e)
         // Ensure minimum loop length
         if (projectState.loopEnd <= projectState.loopStart) projectState.loopEnd = projectState.loopStart + 0.1;
         
+        repaint();
+        return;
+    }
+    
+    // Drag Playhead in Ruler
+    if (e.y < rulerHeight && !isDraggingLoop)
+    {
+        double beat = xToBeats(e.x);
+        if (snapEnabled) beat = std::round(beat / snapResolution) * snapResolution;
+        if (beat < 0) beat = 0;
+        projectState.playheadBeat = beat;
         repaint();
         return;
     }
@@ -475,7 +517,7 @@ void TimelineComponent::updateTimeline()
             auto* cc = new ClipComponent(clip, pixelsPerBeat);
             int x = beatsToX(clip.startBeat);
             int w = (int)(clip.lengthBeats * pixelsPerBeat);
-            int y = trackIndex * trackHeight;
+            int y = rulerHeight + trackIndex * trackHeight;
             int h = trackHeight - 2;
             
             cc->setBounds(x, y, w, h);

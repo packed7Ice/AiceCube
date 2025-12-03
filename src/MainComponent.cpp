@@ -8,7 +8,8 @@ MainComponent::MainComponent()
       transportBar(projectState),
       trackHeaders(projectState, audioEngine),
       timeline(projectState),
-      mixer(projectState, audioEngine)
+      mixer(projectState, audioEngine),
+      pianoRoll(projectState)
 {
     juce::LookAndFeel::setDefaultLookAndFeel(&modernLookAndFeel);
     
@@ -40,7 +41,6 @@ MainComponent::MainComponent()
         opt.dialogBackgroundColour = juce::Colours::darkgrey;
         opt.resizable = true;
         opt.content->setSize(500, 600);
-        opt.launchAsync();
         opt.launchAsync();
     };
     
@@ -149,6 +149,19 @@ void MainComponent::releaseResources()
 void MainComponent::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::black);
+}
+
+bool MainComponent::keyPressed(const juce::KeyPress& key)
+{
+    if (key == juce::KeyPress::spaceKey)
+    {
+        if (projectState.isPlaying)
+            transportBar.onStopClicked();
+        else
+            transportBar.onPlayClicked();
+        return true;
+    }
+    return false;
 }
 
 void MainComponent::resized()

@@ -27,6 +27,7 @@ private:
     
     double pixelsPerBeat = 40.0;
     static constexpr int trackHeight = 50;
+    static constexpr int rulerHeight = 20;
     double scrollX = 0.0;
     
     // Snap

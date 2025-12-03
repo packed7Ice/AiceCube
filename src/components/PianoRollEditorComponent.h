@@ -28,6 +28,10 @@ public:
         };
         
         startTimer(30); // For playback animation
+        
+        // Set initial scroll to C5 (Note 72)
+        // (127 - 72) * 20 = 1100. Center roughly at 800.
+        scrollY = 800;
     }
     
     void setClip(Clip* c)

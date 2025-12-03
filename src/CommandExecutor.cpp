@@ -29,21 +29,31 @@ void CommandExecutor::execute(const AgentCommand& cmd, std::function<void(const 
             
             // Find or create track
             int trackIndex = -1;
-            juce::String targetName = cmd.targetTrackName;
             
-            for (int i = 0; i < projectState.tracks.size(); ++i)
+            // 1. Use selected track if available
+            if (projectState.selectedTrackIndex >= 0 && projectState.selectedTrackIndex < projectState.tracks.size())
             {
-                if (projectState.tracks[i]->name == targetName)
-                {
-                    trackIndex = i;
-                    break;
-                }
+                trackIndex = projectState.selectedTrackIndex;
             }
-            
-            if (trackIndex == -1)
+            else
             {
-                projectState.addTrack(TrackType::Midi, targetName);
-                trackIndex = (int)projectState.tracks.size() - 1;
+                // 2. Fallback to name search
+                juce::String targetName = cmd.targetTrackName;
+                
+                for (int i = 0; i < projectState.tracks.size(); ++i)
+                {
+                    if (projectState.tracks[i]->name == targetName)
+                    {
+                        trackIndex = i;
+                        break;
+                    }
+                }
+                
+                if (trackIndex == -1)
+                {
+                    projectState.addTrack(TrackType::Midi, targetName);
+                    trackIndex = (int)projectState.tracks.size() - 1;
+                }
             }
             
             // Add Clip

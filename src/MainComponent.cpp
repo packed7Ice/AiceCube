@@ -9,7 +9,8 @@ MainComponent::MainComponent()
       trackHeaders(projectState, audioEngine),
       timeline(projectState),
       mixer(projectState, audioEngine),
-      pianoRoll(projectState)
+      pianoRoll(projectState),
+      resizer(&bottomPanel, nullptr, juce::ResizableEdgeComponent::topEdge)
 {
     juce::LookAndFeel::setDefaultLookAndFeel(&modernLookAndFeel);
     
@@ -111,10 +112,14 @@ MainComponent::MainComponent()
         timeline.repaint();
     };
     addAndMakeVisible(timeline);
-    addAndMakeVisible(mixer);
-    addAndMakeVisible(pianoRoll);
-    pianoRoll.setVisible(false); // Hidden by default
-    pianoRoll.setVisible(false); // Hidden by default
+    addAndMakeVisible(timeline);
+    
+    addAndMakeVisible(bottomPanel);
+    bottomPanel.addChildComponent(mixer);
+    bottomPanel.addChildComponent(pianoRoll);
+    
+    addAndMakeVisible(resizer);
+    
     addAndMakeVisible(agentPanel);
 }
 
@@ -174,39 +179,56 @@ void MainComponent::resized()
     // Right: Agent Panel
     agentPanel.setBounds(area.removeFromRight(300));
     
-    // Bottom: Mixer or Piano Roll (Overlay or Split)
-    // If shown, take some space from bottom
-    if (showPianoRoll)
-    {
-        auto bottomArea = area.removeFromBottom(300);
-        pianoRoll.setVisible(true);
-        pianoRoll.setBounds(bottomArea);
-        mixer.setVisible(false);
-    }
-    else if (showMixer)
-    {
-        auto bottomArea = area.removeFromBottom(300);
-        mixer.setVisible(true);
-        mixer.setBounds(bottomArea);
-        pianoRoll.setVisible(false);
-    }
-    else
-    {
-        pianoRoll.setVisible(false);
-        mixer.setVisible(false);
-    }
-
     // Center: Tracks + Timeline
     auto trackHeaderWidth = 200;
     trackHeaders.setBounds(area.removeFromLeft(trackHeaderWidth));
     timeline.setBounds(area);
+    
+    // Bottom: Mixer or Piano Roll (Overlay)
+    if (showPianoRoll || showMixer)
+    {
+        bottomPanel.setVisible(true);
+        resizer.setVisible(true);
+        
+        int h = bottomPanel.getHeight();
+        if (h == 0) h = 300;
+        if (h < 100) h = 100;
+        if (h > getHeight() - 100) h = getHeight() - 100;
+        
+        // Overlay bounds (respecting Transport and Agent Panel)
+        auto overlayBounds = getLocalBounds();
+        overlayBounds.removeFromTop(40);
+        overlayBounds.removeFromRight(300);
+        
+        auto panelBounds = overlayBounds.removeFromBottom(h);
+        bottomPanel.setBounds(panelBounds);
+        resizer.setBounds(panelBounds.getX(), panelBounds.getY() - 5, panelBounds.getWidth(), 5);
+        
+        if (showPianoRoll)
+        {
+            pianoRoll.setVisible(true);
+            mixer.setVisible(false);
+            pianoRoll.setBounds(bottomPanel.getLocalBounds());
+        }
+        else
+        {
+            pianoRoll.setVisible(false);
+            mixer.setVisible(true);
+            mixer.setBounds(bottomPanel.getLocalBounds());
+        }
+    }
+    else
+    {
+        bottomPanel.setVisible(false);
+        resizer.setVisible(false);
+    }
 }
 
 void MainComponent::saveProject()
 {
     fileChooser = std::make_unique<juce::FileChooser>("Save Project",
         juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
-        "*.aice");
+        "*.aice;*");
         
     auto folderChooserFlags = juce::FileBrowserComponent::saveMode | 
                               juce::FileBrowserComponent::canSelectFiles |

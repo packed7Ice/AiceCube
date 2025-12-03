@@ -72,8 +72,16 @@ void TrackHeaderListComponent::updateTrackList()
     {
         auto* header = new TrackHeaderComponent(projectState.tracks[i]);
         header->onPluginButtonClicked = [this](Track* t) {
-            audioEngine.togglePluginWindow(t);
+            audioEngine.openPluginWindow(t);
         };
+        
+        header->onSelect = [this, i] {
+            projectState.selectedTrackIndex = i;
+            for (int j = 0; j < headers.size(); ++j)
+                headers[j]->setSelected(j == i);
+        };
+        header->setSelected(i == projectState.selectedTrackIndex);
+        
         header->onDeleteTrack = [this](Track* t) {
             // Find index
             int index = -1;
@@ -88,8 +96,7 @@ void TrackHeaderListComponent::updateTrackList()
             
             if (index != -1)
             {
-                projectState.removeTrack(index);
-                audioEngine.updateGraph();
+                audioEngine.deleteTrack(index);
                 updateTrackList();
                 if (onTrackListChanged) onTrackListChanged();
             }

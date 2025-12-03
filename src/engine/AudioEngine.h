@@ -45,7 +45,12 @@ public:
     // Recording
     void startRecording();
     void stopRecording();
+
     bool isRecording = false;
+    
+    // Thread Safety
+    void deleteTrack(int index);
+    juce::CriticalSection processLock;
 
 private:
     ProjectState& projectState;

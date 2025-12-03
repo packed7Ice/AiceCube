@@ -17,13 +17,13 @@ public:
     bool isPlaying = false;
     bool isLooping = false;
     double loopStart = 0.0;
-
     double loopEnd = 4.0;
     bool metronomeEnabled = false;
 
     // Data
-    // Using shared_ptr for Tracks to allow easy management
     std::vector<std::shared_ptr<Track>> tracks;
+    
+    int selectedTrackIndex = -1;
 
     // Serialization
     juce::ValueTree serializationRoot { "Project" };

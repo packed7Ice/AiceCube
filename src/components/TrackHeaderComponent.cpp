@@ -64,13 +64,51 @@ TrackHeaderComponent::TrackHeaderComponent(std::shared_ptr<Track> t) : track(t)
     pluginButton.setButtonText("Inst");
     pluginButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkblue);
     pluginButton.onClick = [this] { if (onPluginButtonClicked) onPluginButtonClicked(track.get()); };
+    
+    if (!track->instrumentPlugin)
+        pluginButton.setVisible(false);
+}
+
+void TrackHeaderComponent::mouseDown(const juce::MouseEvent& e)
+{
+    if (onSelect) onSelect();
+    
+    if (e.mods.isPopupMenu())
+    {
+        juce::PopupMenu m;
+        m.addItem(1, "Delete Track");
+        
+        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+            if (result == 1)
+            {
+                if (onDeleteTrack) onDeleteTrack(track.get());
+            }
+        });
+    }
+}
+
+void TrackHeaderComponent::setSelected(bool s)
+{
+    selected = s;
+    repaint();
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::darkgrey.darker(0.1f));
-    g.setColour(juce::Colours::black);
-    g.drawRect(getLocalBounds(), 1);
+    
+    if (selected)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.1f));
+        g.fillAll();
+        g.setColour(juce::Colours::orange);
+        g.drawRect(getLocalBounds(), 2);
+    }
+    else
+    {
+        g.setColour(juce::Colours::black);
+        g.drawRect(getLocalBounds(), 1);
+    }
     
     // Track Type Indicator
     juce::Colour typeColor;
@@ -107,20 +145,4 @@ void TrackHeaderComponent::resized()
     soloButton.setBounds(buttonRow.removeFromLeft(btnW).reduced(1));
     recButton.setBounds(buttonRow.removeFromLeft(btnW).reduced(1));
     automationButton.setBounds(buttonRow.reduced(1));
-}
-
-void TrackHeaderComponent::mouseDown(const juce::MouseEvent& e)
-{
-    if (e.mods.isPopupMenu())
-    {
-        juce::PopupMenu m;
-        m.addItem(1, "Delete Track");
-        
-        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
-            if (result == 1)
-            {
-                if (onDeleteTrack) onDeleteTrack(track.get());
-            }
-        });
-    }
 }

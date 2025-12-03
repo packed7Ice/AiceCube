@@ -51,6 +51,9 @@ private:
     bool showPianoRoll = false;
     bool showMixer = false;
     
+    juce::Component bottomPanel;
+    juce::ResizableEdgeComponent resizer;
+    
     juce::Component::SafePointer<juce::DocumentWindow> fileBrowserWindow;
     
     AgentPanel agentPanel;

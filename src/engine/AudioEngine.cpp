@@ -38,6 +38,8 @@ void AudioEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
     }
 }
 
+
+
 void AudioEngine::releaseResources()
 {
     mainProcessor->releaseResources();
@@ -46,6 +48,8 @@ void AudioEngine::releaseResources()
 
 void AudioEngine::processAudio(const juce::AudioSourceChannelInfo& bufferToFill, juce::MidiBuffer& midiMessages)
 {
+    const juce::ScopedLock sl(processLock);
+
     // Capture Input for Recording
     if (isRecording && !trackRecorders.empty())
     {
@@ -719,3 +723,12 @@ void AudioEngine::playMetronome(const juce::AudioSourceChannelInfo& bufferToFill
         }
     }
 }
+
+void AudioEngine::deleteTrack(int index)
+{
+    const juce::ScopedLock sl(processLock);
+    projectState.removeTrack(index);
+    updateGraph();
+}
+
+

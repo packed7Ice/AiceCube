@@ -11,14 +11,18 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void mouseDown(const juce::MouseEvent& e) override;
     
+    void setSelected(bool selected);
+    std::function<void()> onSelect;
     std::function<void(Track*)> onPluginButtonClicked;
     std::function<void(Track*)> onDeleteTrack;
 
-    void mouseDown(const juce::MouseEvent& e) override;
+
 
 private:
     std::shared_ptr<Track> track;
+    bool selected = false;
     
     juce::Label nameLabel;
     juce::TextButton muteButton{ "M" };

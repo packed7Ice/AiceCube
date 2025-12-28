@@ -1,0 +1,159 @@
+/* TransportBar Component Styles */
+
+.transport-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(180deg, #1e1e2e 0%, #181825 100%);
+  border-bottom: 1px solid #313244;
+  height: 56px;
+  min-height: 56px;
+}
+
+.transport-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Position Display */
+.position-section {
+  min-width: 140px;
+}
+
+.position-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #11111b;
+  padding: 0.25rem 1rem;
+  border-radius: 4px;
+  border: 1px solid #313244;
+}
+
+.position-label {
+  font-size: 0.65rem;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.position-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #a6e3a1;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+/* Transport Buttons */
+.controls-section {
+  gap: 0.25rem;
+}
+
+.transport-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #313244;
+  border: none;
+  border-radius: 6px;
+  color: #cdd6f4;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.transport-btn:hover {
+  background: #45475a;
+  transform: translateY(-1px);
+}
+
+.transport-btn:active {
+  transform: translateY(0);
+}
+
+.transport-btn.active {
+  background: #89b4fa;
+  color: #1e1e2e;
+}
+
+.play-btn.active {
+  background: #a6e3a1;
+  box-shadow: 0 0 12px rgba(166, 227, 161, 0.3);
+}
+
+.stop-btn.active {
+  background: #45475a;
+}
+
+.record-btn:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
+.loop-btn.active {
+  background: #cba6f7;
+  color: #1e1e2e;
+}
+
+.metronome-btn.active {
+  background: #fab387;
+  color: #1e1e2e;
+}
+
+/* Tempo Section */
+.tempo-section {
+  gap: 0.5rem;
+}
+
+.tempo-label {
+  font-size: 0.75rem;
+  color: #6c7086;
+  font-weight: 500;
+}
+
+.tempo-input {
+  width: 70px;
+  padding: 0.4rem 0.5rem;
+  background: #11111b;
+  border: 1px solid #313244;
+  border-radius: 4px;
+  color: #f9e2af;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  text-align: center;
+}
+
+.tempo-input:focus {
+  outline: none;
+  border-color: #89b4fa;
+  box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
+}
+
+.tempo-input::-webkit-inner-spin-button,
+.tempo-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Time Signature */
+.time-sig {
+  font-size: 0.9rem;
+  color: #cdd6f4;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  background: #11111b;
+  border-radius: 4px;
+  border: 1px solid #313244;
+}
+
+/* Loop Range */
+.loop-range {
+  font-size: 0.75rem;
+  color: #cba6f7;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+}

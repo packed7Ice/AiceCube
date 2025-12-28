@@ -1,163 +1,148 @@
 /**
  * AiceCube - Modern DAW Application
- * Simplified version for debugging
+ * Incremental test with Timeline component
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Timeline } from './views/Timeline';
+import type { Track, TransportState } from './types/daw';
+import { defaultTransportState, TRACK_COLORS } from './types/daw';
 import './App.css';
 
-// Simplified TransportBar for testing
-function TransportBar() {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [tempo, setTempo] = useState(120);
-  
-  return (
-    <div className="transport-bar" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '1rem',
-      padding: '0.75rem 1.5rem',
-      background: 'linear-gradient(180deg, #1e1e2e 0%, #181825 100%)',
-      borderBottom: '1px solid #313244',
-      height: '56px',
-    }}>
-      <button 
-        onClick={() => setIsPlaying(!isPlaying)}
-        style={{
-          width: '40px',
-          height: '40px',
-          background: isPlaying ? '#a6e3a1' : '#313244',
-          color: isPlaying ? '#1e1e2e' : '#cdd6f4',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '1.1rem',
-          cursor: 'pointer',
-        }}
-      >
-        {isPlaying ? '⏹' : '▶'}
-      </button>
-      
-      <div style={{ color: '#cdd6f4' }}>
-        <span style={{ fontSize: '0.75rem', color: '#6c7086' }}>BPM </span>
-        <input
-          type="number"
-          value={tempo}
-          onChange={(e) => setTempo(Number(e.target.value))}
-          style={{
-            width: '70px',
-            padding: '0.4rem',
-            background: '#11111b',
-            border: '1px solid #313244',
-            borderRadius: '4px',
-            color: '#f9e2af',
-            fontSize: '0.9rem',
-            textAlign: 'center',
-          }}
-        />
-      </div>
-      
-      <span style={{ color: '#a6e3a1', fontFamily: 'monospace' }}>
-        1.1.00
-      </span>
-    </div>
-  );
-}
+// Create simple demo data
+const createDemoTracks = (): Track[] => [
+  {
+    id: 'track-1',
+    type: 'midi',
+    name: 'Demo Track 1',
+    color: TRACK_COLORS[6],
+    volume: 1,
+    pan: 0,
+    mute: false,
+    solo: false,
+    arm: false,
+    clips: [
+      {
+        id: 'clip-1',
+        trackId: 'track-1',
+        name: 'Intro',
+        startBeat: 0,
+        lengthBeats: 4,
+        isMidi: true,
+        color: TRACK_COLORS[6],
+        notes: [
+          { id: '1', pitch: 60, startBeat: 0, lengthBeats: 1, velocity: 100 },
+          { id: '2', pitch: 64, startBeat: 1, lengthBeats: 1, velocity: 100 },
+          { id: '3', pitch: 67, startBeat: 2, lengthBeats: 1, velocity: 100 },
+          { id: '4', pitch: 72, startBeat: 3, lengthBeats: 1, velocity: 100 },
+        ],
+        gain: 1,
+        fadeIn: 0,
+        fadeOut: 0,
+      },
+      {
+        id: 'clip-2',
+        trackId: 'track-1',
+        name: 'Verse',
+        startBeat: 8,
+        lengthBeats: 8,
+        isMidi: true,
+        color: TRACK_COLORS[3],
+        notes: [],
+        gain: 1,
+        fadeIn: 0,
+        fadeOut: 0,
+      },
+    ],
+  },
+  {
+    id: 'track-2',
+    type: 'midi',
+    name: 'Demo Track 2',
+    color: TRACK_COLORS[7],
+    volume: 1,
+    pan: 0,
+    mute: false,
+    solo: false,
+    arm: false,
+    clips: [],
+  },
+];
 
 function App() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [tracks] = useState<Track[]>(createDemoTracks);
+  const [transport, setTransport] = useState<TransportState>(defaultTransportState);
+  const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   
-  useEffect(() => {
-    // Simple connection attempt
-    const ws = new WebSocket('ws://localhost:9001');
-    ws.onopen = () => setIsConnected(true);
-    ws.onclose = () => setIsConnected(false);
-    ws.onerror = () => setIsConnected(false);
-    
-    return () => ws.close();
-  }, []);
+  const handlePlay = () => {
+    setIsPlaying(true);
+    setTransport(prev => ({ ...prev, isPlaying: true }));
+  };
+  
+  const handleStop = () => {
+    setIsPlaying(false);
+    setTransport(prev => ({ ...prev, isPlaying: false }));
+  };
   
   return (
-    <div className="app" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      background: '#1e1e2e',
-    }}>
+    <div className="app">
       {/* Transport Bar */}
-      <TransportBar />
+      <div className="transport-bar">
+        <div className="transport-section controls">
+          <button
+            className={`transport-btn ${!isPlaying ? 'active' : ''}`}
+            onClick={handleStop}
+          >
+            ⏹
+          </button>
+          <button
+            className={`transport-btn play ${isPlaying ? 'active' : ''}`}
+            onClick={handlePlay}
+          >
+            ▶
+          </button>
+        </div>
+        <div className="transport-section">
+          <span style={{ color: '#cdd6f4' }}>BPM: {transport.tempo}</span>
+        </div>
+      </div>
       
-      {/* Main Content Area */}
-      <div style={{
-        display: 'flex',
-        flex: 1,
-        overflow: 'hidden',
-      }}>
-        {/* Track Headers */}
-        <div style={{
-          width: '200px',
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Track Headers placeholder */}
+        <div className="track-headers-panel" style={{ 
+          width: '200px', 
           background: '#181825',
           borderRight: '1px solid #313244',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#6c7086',
+          color: '#6c7086'
         }}>
-          トラック一覧
+          Track Headers
         </div>
         
         {/* Timeline */}
-        <div style={{
-          flex: 1,
-          background: '#11111b',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#6c7086',
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', opacity: 0.3 }}>🎹</div>
-            <div>タイムライン</div>
-          </div>
+        <div className="timeline-panel">
+          <Timeline
+            tracks={tracks}
+            transport={transport}
+            selectedTrackIndex={selectedTrackIndex}
+            selectedClipId={selectedClipId}
+            onSelectTrack={setSelectedTrackIndex}
+            onSelectClip={setSelectedClipId}
+            onAddClip={(trackIndex, startBeat) => console.log('Add clip', trackIndex, startBeat)}
+            onMoveClip={(clipId, trackIndex, startBeat) => console.log('Move clip', clipId, trackIndex, startBeat)}
+            onSetPlayhead={(beat) => setTransport(prev => ({ ...prev, playheadBeat: beat }))}
+          />
         </div>
       </div>
       
       {/* Bottom Panel */}
-      <div style={{
-        height: '200px',
-        background: '#181825',
-        borderTop: '1px solid #313244',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#6c7086',
-      }}>
-        ミキサー / ブラウザ
-      </div>
-      
-      {/* Connection Status */}
-      <div style={{
-        position: 'fixed',
-        bottom: '12px',
-        right: '12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        padding: '0.4rem 0.75rem',
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(8px)',
-        borderRadius: '20px',
-        fontSize: '0.75rem',
-      }}>
-        <span style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: isConnected ? '#a6e3a1' : '#f38ba8',
-          boxShadow: isConnected ? '0 0 8px #a6e3a1' : '0 0 8px #f38ba8',
-        }} />
-        <span style={{ color: '#a6adc8' }}>
-          {isConnected ? 'Engine 接続済' : 'Engine に接続中...'}
-        </span>
+      <div className="bottom-panel">
+        <span className="placeholder-text">Bottom Panel</span>
       </div>
     </div>
   );

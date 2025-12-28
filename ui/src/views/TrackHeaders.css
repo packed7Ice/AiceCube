@@ -1,0 +1,184 @@
+/* Track Headers Component Styles */
+
+.track-headers {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #181825;
+}
+
+/* Ruler area at top */
+.track-headers-ruler {
+  height: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+}
+
+.add-track-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  background: #313244;
+  border: none;
+  border-radius: 3px;
+  color: #89b4fa;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-track-btn:hover {
+  background: #45475a;
+}
+
+.add-track-btn.audio {
+  color: #a6e3a1;
+}
+
+/* Track list */
+.track-headers-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Individual track header */
+.track-header {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid #313244;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  position: relative;
+}
+
+.track-header:hover {
+  background: rgba(69, 71, 90, 0.3);
+}
+
+.track-header.selected {
+  background: rgba(137, 180, 250, 0.1);
+}
+
+/* Color indicator */
+.track-color-indicator {
+  width: 4px;
+  height: 60px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Track info */
+.track-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.track-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #cdd6f4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+.track-name:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.track-type {
+  font-size: 14px;
+}
+
+/* Track controls (M/S/R buttons) */
+.track-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.track-btn {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #313244;
+  border: none;
+  border-radius: 3px;
+  color: #6c7086;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.track-btn:hover {
+  background: #45475a;
+  color: #cdd6f4;
+}
+
+.track-btn.mute.active {
+  background: #f9e2af;
+  color: #1e1e2e;
+}
+
+.track-btn.solo.active {
+  background: #89b4fa;
+  color: #1e1e2e;
+}
+
+.track-btn.arm.active {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
+/* Delete button */
+.track-delete-btn {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  background: transparent;
+  border: none;
+  color: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.1s ease;
+}
+
+.track-header:hover .track-delete-btn {
+  color: #6c7086;
+}
+
+.track-delete-btn:hover {
+  background: #f38ba8;
+  color: #1e1e2e !important;
+}
+
+/* Empty state */
+.track-headers-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #6c7086;
+  font-size: 12px;
+}
+
+.track-headers-empty .hint {
+  font-size: 10px;
+  opacity: 0.6;
+}
